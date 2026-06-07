@@ -26,46 +26,46 @@ echo ">>> Phase 1: 启动集群"
 docker compose down -v 2>/dev/null || true
 
 if [ "$DELAY_MODE" = true ]; then
-  docker compose --env-file=.env.delay up -d --scale yb=3 --no-recreate
+  docker compose --env-file=.env.delay up -d yb-1 yb-2 yb-3 yb-4 yb-5 ui-7000 ui-15433 pg rfNready
 else
-  docker compose up -d --scale yb=3 --no-recreate
+  docker compose up -d yb-1 yb-2 yb-3 yb-4 yb-5 ui-7000 ui-15433 pg rfNready
 fi
 
 echo "Waiting for cluster to be ready..."
-docker compose wait rf3isready
+docker compose wait rfNready
 sleep 5
 
 echo ""
 echo ">>> 验证集群拓扑"
-docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "
+docker compose exec -T yb-1 ysqlsh -h yb-1 -c "
 SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;
 "
 
 echo ""
 echo ">>> 验证延迟注入"
-for node in yb-compose-yb-1 yb-compose-yb-2 yb-compose-yb-3; do
-  delay=$(docker exec "$node" tc qdisc show dev eth0 2>/dev/null | grep -oP 'delay \K[0-9]+' || echo "0")
+for node in yb-1 yb-2 yb-3 yb-4 yb-5; do
+  delay=$(docker compose exec "$node" tc qdisc show dev eth0 2>/dev/null | grep -oP 'delay \K[0-9]+' || echo "0")
   echo "  $node: ${delay}ms delay"
 done
 
 # ----- Phase 2: 架构分析 -----
 echo ""
 echo ">>> Phase 2.1: HLC 时钟同步"
-docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -f sql/01-hlc-clock.sql
+docker compose exec -T yb-1 ysqlsh -h yb-1 -f sql/01-hlc-clock.sql
 
 echo ""
 echo ">>> Phase 2.2: Raft 共识 - 查看 tablet 分布"
-TABLE_ID=$(docker compose exec -T yb yb-admin -master_addresses yb-compose-yb-1:7100 list_tables 2>/dev/null \
+TABLE_ID=$(docker compose exec -T yb-1 yb-admin -master_addresses yb-1:7100 list_tables 2>/dev/null \
   | grep "perf_test" | grep -oP '\[([0-9a-f]+)\]' | tr -d '[]')
 if [ -n "$TABLE_ID" ]; then
-  docker compose exec -T yb yb-admin -master_addresses yb-compose-yb-1:7100 list_tablets "tableid.$TABLE_ID" 0 2>/dev/null
+  docker compose exec -T yb-1 yb-admin -master_addresses yb-1:7100 list_tablets "tableid.$TABLE_ID" 0 2>/dev/null
 fi
 
 # ----- Phase 2.4: 表空间 -----
 echo ""
 echo ">>> Phase 2.4: 创建 Geo-Partitioning 表空间"
-for ts_sql in region1 region2 region3; do
-  docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "
+for ts_sql in region1 region2 region3 region4 region5; do
+  docker compose exec -T yb-1 ysqlsh -h yb-1 -c "
     CREATE TABLESPACE $ts_sql WITH (
       replica_placement = '{
         \"num_replicas\": 1,
@@ -77,7 +77,7 @@ for ts_sql in region1 region2 region3; do
   " 2>/dev/null || true
 done
 
-docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "
+docker compose exec -T yb-1 ysqlsh -h yb-1 -c "
   CREATE TABLESPACE pref1 WITH (
     replica_placement = '{
       \"num_replicas\": 3,
@@ -90,7 +90,7 @@ docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "
   );
 " 2>/dev/null || true
 
-docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "
+docker compose exec -T yb-1 ysqlsh -h yb-1 -c "
   SELECT spcname FROM pg_tablespace WHERE spcname NOT IN ('pg_default', 'pg_global');
 "
 
@@ -109,7 +109,7 @@ bash "$SCRIPT_DIR/03-consistency-test.sh"
 
 echo ""
 echo ">>> Phase 4.3: 故障切换测试"
-bash "$SCRIPT_DIR/04-failover-test.sh" yb-compose-yb-1 yb-compose-yb-1
+bash "$SCRIPT_DIR/04-failover-test.sh" yb-1 yb-2
 
 echo ""
 echo "============================================"

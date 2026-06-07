@@ -11,17 +11,17 @@
 .PHONY: up up-delay status psql bench bench-delay clean
 
 up:
-	docker compose up -d --scale yb=5 --no-recreate
+	docker compose up -d yb-1 yb-2 yb-3 yb-4 yb-5 ui-7000 ui-15433 pg rfNready
 	docker compose wait rfNready
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;"
+	docker compose exec -T yb-1 ysqlsh -h yb-1 -c "SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;"
 
 up-delay:
-	docker compose --env-file=.env.delay up -d --scale yb=5 --no-recreate
+	docker compose --env-file=.env.delay up -d yb-1 yb-2 yb-3 yb-4 yb-5 ui-7000 ui-15433 pg rfNready
 	docker compose wait rfNready
 	@sleep 3
 	@echo "=== 验证延迟注入 ==="
 	for i in 1 2 3 4 5; do \
-		n=yb-compose-yb-$$i; \
+		n=yb-$$i; \
 		d="$$(docker compose exec $$n tc qdisc show dev eth0 2>/dev/null | grep -o 'delay [0-9]*ms' || echo 'none')"; \
 		echo "  $$n: $$d"; \
 	done
@@ -29,10 +29,10 @@ up-delay:
 status:
 	docker compose ps
 	@echo ""
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;"
+	docker compose exec -T yb-1 ysqlsh -h yb-1 -c "SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;"
 
 psql:
-	docker compose exec -it yb ysqlsh -h yb-compose-yb-1
+	docker compose exec -it yb-1 ysqlsh -h yb-1
 
 # 构建压测工具镜像
 build-bench:
@@ -40,11 +40,11 @@ build-bench:
 
 bench: up
 	@echo ">>> Phase 2.1: HLC 时钟"
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -f sql/01-hlc-clock.sql 2>/dev/null || true
+	docker compose exec -T yb-1 ysqlsh -h yb-1 -f sql/01-hlc-clock.sql 2>/dev/null || true
 	@echo ""
 	@echo ">>> Phase 2.4: 表空间"
 	for i in 1 2 3 4 5; do \
-		docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "CREATE TABLESPACE region$$i WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region$$i\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true; \
+		docker compose exec -T yb-1 ysqlsh -h yb-1 -c "CREATE TABLESPACE region$$i WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region$$i\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true; \
 	done
 	@echo "  Tablespaces created"
 	@echo ""
@@ -56,7 +56,7 @@ bench: up
 	bash scripts/03-consistency-test.sh
 	@echo ""
 	@echo ">>> Phase 4.3: 故障切换"
-	bash scripts/04-failover-test.sh yb-compose-yb-1 yb-compose-yb-1
+	bash scripts/04-failover-test.sh yb-1 yb-1
 
 bench-delay: up-delay
 	$(MAKE) bench

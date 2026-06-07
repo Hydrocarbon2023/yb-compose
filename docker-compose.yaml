@@ -15,11 +15,11 @@ services:
        tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
       '
     healthcheck:
-      test: postgres/bin/pg_isready -h localhost -p 5433
+      test: postgres/bin/pg_isready -h $(hostname) -p 5433
       interval: 10s
       timeout: 5s
-      start_period: 30s
-      retries: 10
+      start_period: 60s
+      retries: 15
     expose:
       - 7000
       - 9000
@@ -35,18 +35,19 @@ services:
     <<: *yb-default
     command: |
       bash -xc '
-       other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
-       N=2
-       cloud_location="cloud.region$${N}.zone"
-       until postgres/bin/pg_isready -h yb-1 2>/dev/null; do sleep 1; done
-       yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
-       delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
-       if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
-         dnf -y install iproute-tc >/dev/null 2>&1
-         tc qdisc add dev eth0 root netem delay $$delay_ms 2>/dev/null || true
-       fi
-       tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
-      '
+        other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
+        N=2
+        cloud_location="cloud.region$${N}.zone"
+        until postgres/bin/pg_isready -h yb-1 2>/dev/null; do sleep 1; done
+        sleep 2
+        yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
+        delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
+        if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
+          dnf -y install iproute-tc >/dev/null 2>&1
+          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+        fi
+        tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
+       '
     ports:
       - "5434:5433"
       - "9043:9042"
@@ -55,18 +56,19 @@ services:
     <<: *yb-default
     command: |
       bash -xc '
-       other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
-       N=3
-       cloud_location="cloud.region$${N}.zone"
-       until postgres/bin/pg_isready -h yb-1 2>/dev/null; do sleep 1; done
-       yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
-       delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
-       if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
-         dnf -y install iproute-tc >/dev/null 2>&1
-         tc qdisc add dev eth0 root netem delay $$delay_ms 2>/dev/null || true
-       fi
-       tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
-      '
+        other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
+        N=3
+        cloud_location="cloud.region$${N}.zone"
+        until postgres/bin/pg_isready -h yb-2 2>/dev/null; do sleep 1; done
+        sleep 2
+        yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
+        delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
+        if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
+          dnf -y install iproute-tc >/dev/null 2>&1
+          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+        fi
+        tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
+       '
     ports:
       - "5435:5433"
       - "9044:9042"
@@ -75,18 +77,19 @@ services:
     <<: *yb-default
     command: |
       bash -xc '
-       other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
-       N=4
-       cloud_location="cloud.region$${N}.zone"
-       until postgres/bin/pg_isready -h yb-1 2>/dev/null; do sleep 1; done
-       yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
-       delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
-       if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
-         dnf -y install iproute-tc >/dev/null 2>&1
-         tc qdisc add dev eth0 root netem delay $$delay_ms 2>/dev/null || true
-       fi
-       tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
-      '
+        other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
+        N=4
+        cloud_location="cloud.region$${N}.zone"
+        until postgres/bin/pg_isready -h yb-3 2>/dev/null; do sleep 1; done
+        sleep 2
+        yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
+        delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
+        if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
+          dnf -y install iproute-tc >/dev/null 2>&1
+          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+        fi
+        tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
+       '
     ports:
       - "5436:5433"
       - "9045:9042"
@@ -95,32 +98,56 @@ services:
     <<: *yb-default
     command: |
       bash -xc '
-       other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
-       N=5
-       cloud_location="cloud.region$${N}.zone"
-       until postgres/bin/pg_isready -h yb-1 2>/dev/null; do sleep 1; done
-       for i in 2 3 4; do
-         until postgres/bin/pg_isready -h yb-$${i} 2>/dev/null; do sleep 1; done
-       done
-       yugabyted configure data_placement --constraint_value "cloud.region1.zone:1,cloud.region2.zone:2,cloud.region3.zone:3,cloud.region4.zone:4,cloud.region5.zone:5" 2>/dev/null || true
-       yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
-       delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
-       if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
-         dnf -y install iproute-tc >/dev/null 2>&1
-         tc qdisc add dev eth0 root netem delay $$delay_ms 2>/dev/null || true
-       fi
-       tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
-      '
+        other_flags="--tserver_flags=${TSERVER_FLAGS:-} --master_flags=${MASTER_FLAGS:-}"
+        N=5
+        cloud_location="cloud.region$${N}.zone"
+        until postgres/bin/pg_isready -h yb-4 2>/dev/null; do sleep 1; done
+        sleep 2
+        yugabyted start --join=yb-1 --advertise_address=$$(hostname) --cloud_location=$$cloud_location $$other_flags
+        delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
+        if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
+          dnf -y install iproute-tc >/dev/null 2>&1
+          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+        fi
+        # Background: wait for all nodes then configure data_placement
+        (
+          for i in 2 3 4; do
+            until postgres/bin/pg_isready -h yb-$${i} 2>/dev/null; do sleep 2; done
+          done
+          sleep 5
+          yugabyted configure data_placement --constraint_value "cloud.region1.zone:1,cloud.region2.zone:2,cloud.region3.zone:3,cloud.region4.zone:4,cloud.region5.zone:5" 2>/dev/null || true
+        ) &
+        tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
+       '
     ports:
       - "5437:5433"
       - "9046:9042"
 
   rfNready:
     image: yugabytedb/yugabyte
-    command: postgres/bin/pg_isready -h yb-5
+    command: >
+      bash -c '
+        for i in $$(seq 1 120); do
+          for n in yb-1 yb-2 yb-3 yb-4 yb-5; do
+            postgres/bin/pg_isready -h $$n -p 5433 2>/dev/null || { sleep 3; continue 2; }
+          done
+          echo "All 5 nodes accepting connections"
+          exit 0
+        done
+        echo "Timeout waiting for 5 nodes"
+        exit 1
+      '
     depends_on:
+      yb-1:
+        condition: service_started
+      yb-2:
+        condition: service_started
+      yb-3:
+        condition: service_started
+      yb-4:
+        condition: service_started
       yb-5:
-        condition: service_healthy
+        condition: service_started
 
   ui-7000:
     image: caddy:2-alpine

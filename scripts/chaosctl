@@ -24,27 +24,26 @@
 
 set -euo pipefail
 
-readonly COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-yb-compose}"
 readonly NODES=(
-  "${COMPOSE_PROJECT}-yb-1"
-  "${COMPOSE_PROJECT}-yb-2"
-  "${COMPOSE_PROJECT}-yb-3"
-  "${COMPOSE_PROJECT}-yb-4"
-  "${COMPOSE_PROJECT}-yb-5"
+  "yb-compose-yb-1-1"
+  "yb-compose-yb-2-1"
+  "yb-compose-yb-3-1"
+  "yb-compose-yb-4-1"
+  "yb-compose-yb-5-1"
 )
 readonly STATE_FILE="/tmp/chaosctl.state"
 
 # ==================== 工具函数 ====================
 
-# 解析节点名: yb-1 / region1 / yb-compose-yb-1 都行
+# 解析节点名: yb-1 / region1 都行
 resolve_node() {
   local name="$1"
   case "$name" in
-    yb-compose-yb-1|yb-1|region1|node1) echo "${COMPOSE_PROJECT}-yb-1" ;;
-    yb-compose-yb-2|yb-2|region2|node2) echo "${COMPOSE_PROJECT}-yb-2" ;;
-    yb-compose-yb-3|yb-3|region3|node3) echo "${COMPOSE_PROJECT}-yb-3" ;;
-    yb-compose-yb-4|yb-4|region4|node4) echo "${COMPOSE_PROJECT}-yb-4" ;;
-    yb-compose-yb-5|yb-5|region5|node5) echo "${COMPOSE_PROJECT}-yb-5" ;;
+    yb-1|region1|node1) echo "yb-compose-yb-1-1" ;;
+    yb-2|region2|node2) echo "yb-compose-yb-2-1" ;;
+    yb-3|region3|node3) echo "yb-compose-yb-3-1" ;;
+    yb-4|region4|node4) echo "yb-compose-yb-4-1" ;;
+    yb-5|region5|node5) echo "yb-compose-yb-5-1" ;;
     *) echo "" ;;
   esac
 }
@@ -440,9 +439,9 @@ scenario_network_partition() {
   echo "--- Before partition ---"
   local leader_node="${NODES[0]}"
   if node_is_running "$leader_node"; then
-    docker compose exec -T yb ysqlsh -h "$leader_node" -tAc "
+    yb_exec "$leader_node" "ysqlsh -h yb-1 -tAc \"
       SELECT host, CASE WHEN is_leader THEN 'LEADER' ELSE 'follower' END FROM yb_servers() ORDER BY host;
-    " 2>/dev/null || echo "  (unreachable)"
+    \" 2>/dev/null" || echo "  (unreachable)"
   fi
   echo ""
 
@@ -459,9 +458,9 @@ scenario_network_partition() {
     local remaining=$((duration - i * 5))
     echo "  [t=${i}s] Remaining: ${remaining}s"
     if node_is_running "$leader_node"; then
-      docker compose exec -T yb ysqlsh -h "$leader_node" -tAc "
+      yb_exec "$leader_node" "ysqlsh -h yb-1 -tAc \"
         SELECT host, CASE WHEN is_leader THEN 'LEADER' ELSE 'follower' END FROM yb_servers() ORDER BY host;
-      " 2>/dev/null || echo "  (master unreachable)"
+      \" 2>/dev/null" || echo "  (master unreachable)"
     fi
   done
 
@@ -479,9 +478,9 @@ scenario_network_partition() {
   echo "--- After heal ---"
   sleep 3
   if node_is_running "$leader_node"; then
-    docker compose exec -T yb ysqlsh -h "$leader_node" -tAc "
+    yb_exec "$leader_node" "ysqlsh -h yb-1 -tAc \"
       SELECT host, CASE WHEN is_leader THEN 'LEADER' ELSE 'follower' END FROM yb_servers() ORDER BY host;
-    " 2>/dev/null || echo "  (unreachable)"
+    \" 2>/dev/null" || echo "  (unreachable)"
   fi
   echo ""
   echo "Scenario complete."
@@ -543,7 +542,7 @@ scenario_cascading_failure() {
   echo "  Checking cluster availability..."
   local leader_node="${NODES[0]}"
   if node_is_running "$leader_node"; then
-    docker compose exec -T yb ysqlsh -h "$leader_node" -tAc "SELECT 1;" 2>/dev/null \
+    yb_exec "$leader_node" "ysqlsh -h yb-1 -tAc \"SELECT 1;\" 2>/dev/null" \
       && echo "  ✓ region3 (via yb-1) still available" \
       || echo "  ✗ cluster unavailable"
   fi

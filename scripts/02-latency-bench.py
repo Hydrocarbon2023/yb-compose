@@ -58,15 +58,17 @@ def main():
     try:
         # 确保 perf_test 存在
         r = run(["docker", "exec", CLIENT_NAME, "psql",
-                 "-h", "yb-compose-yb-1", "-U", "yugabyte", "-tAc",
+                 "-h", "yb-1", "-U", "yugabyte", "-tAc",
                  "SELECT count(*) FROM perf_test"], timeout=10)
         if "0" in r.stdout.strip():
             print("WARNING: perf_test table is empty. Run scripts/01-setup-perf-test.sh first.")
 
         hosts = {
-            "region1 (30ms egress)":  "yb-compose-yb-1",
-            "region2 (60ms egress)":  "yb-compose-yb-2",
-            "region3 (90ms egress)":  "yb-compose-yb-3",
+            "region1 (30ms egress)":  "yb-1",
+            "region2 (60ms egress)":  "yb-2",
+            "region3 (90ms egress)":  "yb-3",
+            "region4 (120ms egress)": "yb-4",
+            "region5 (150ms egress)": "yb-5",
         }
 
         all_results = {}
