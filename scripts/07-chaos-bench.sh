@@ -62,6 +62,7 @@ done
 echo ""
 echo "=== Phase 3: 恢复 region2 ==="
 make chaos CMD="partition heal region2"
+sleep 3  # wait for Raft re-convergence
 echo ""
 
 for i in $(seq 1 5); do

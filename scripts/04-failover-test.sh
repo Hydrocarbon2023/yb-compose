@@ -71,7 +71,7 @@ SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;
 # 恢复节点
 echo ""
 echo "=== 5. 恢复 $TARGET ==="
-docker compose up -d 2>&1 | tail -3
+docker compose start "$TARGET" 2>&1
 sleep 10
 
 echo ""

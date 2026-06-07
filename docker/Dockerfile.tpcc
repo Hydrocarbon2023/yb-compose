@@ -1,0 +1,28 @@
+# TPC-C benchmark image with go-tpc for YugabyteDB YSQL
+# Build: docker build -f Dockerfile.tpcc -t yb-tpcc:latest .
+
+# Stage 1: Build go-tpc from source
+FROM golang:1.25-alpine AS builder
+
+# Fix TLS + use retry for network resilience in restricted build environments
+RUN apk update && apk add --no-cache ca-certificates && update-ca-certificates && \
+    for i in 1 2 3; do apk add --no-cache git make && break || sleep 3; done
+
+RUN git clone --depth 1 https://github.com/pingcap/go-tpc.git /workspace
+WORKDIR /workspace
+
+# Use Go module proxy + retry for network resilience
+ENV GOPROXY=https://proxy.golang.org,direct
+RUN for i in 1 2 3; do make build && break || sleep 5; done
+
+# Stage 2: Minimal runtime — fix CA + retry for intermittent SSL in Docker build
+FROM alpine:3.21
+
+RUN for i in 1 2 3 4 5; do \
+    apk update && apk add --no-cache ca-certificates dumb-init tzdata postgresql16-client && break || sleep 3; \
+    done && update-ca-certificates
+
+COPY --from=builder /workspace/bin/go-tpc /usr/local/bin/go-tpc
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["go-tpc"]

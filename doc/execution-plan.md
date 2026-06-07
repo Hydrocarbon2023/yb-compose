@@ -1,6 +1,6 @@
 # YugabyteDB 全球分布式数据库测评 — 执行计划
 
-> 基于 `docker-compose.yaml`（3 节点 RF=3 集群）+ 《全球分布式数据库调研及测评》实验指南
+> 基于 `compose/base.yaml`（5 节点 RF=3 集群）+ 《全球分布式数据库调研及测评》实验指南
 
 ---
 

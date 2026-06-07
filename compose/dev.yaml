@@ -4,16 +4,16 @@
 # 直接操作宿主机的 Docker 守护进程，无需嵌套 Docker。
 #
 # 用法:
-#   docker compose -f docker-compose.dev.yaml run --rm yblab make experiment-all
-#   docker compose -f docker-compose.dev.yaml run --rm yblab make experiment-wan
-#   docker compose -f docker-compose.dev.yaml run --rm yblab bash
+#   docker compose -f compose/dev.yaml run --rm yblab make experiment-all
+#   docker compose -f compose/dev.yaml run --rm yblab make experiment-wan
+#   docker compose -f compose/dev.yaml run --rm yblab bash
 
 services:
   yblab:
     image: docker:cli
     working_dir: /workspace
     volumes:
-      - .:/workspace
+      - ..:/workspace
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
@@ -22,5 +22,5 @@ services:
       - /bin/sh
       - -c
       - |
-        apk add --no-cache make python3 py3-pip >/dev/null 2>&1
+        apk add --no-cache bash make python3 py3-pip >/dev/null || { echo "ERROR: Failed to install dependencies (check network/mirrors)"; exit 1; }
         exec "$$0" "$$@"

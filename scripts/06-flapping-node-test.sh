@@ -46,10 +46,13 @@ trap cleanup EXIT
 # Measure read latency from yb-2
 measure_read_latency() {
   local start end latency
-  start=$(date +%s%N)
-  docker compose exec -T yb-2 ysqlsh -h yb-2 -tAc "SELECT id FROM perf_test WHERE id = 1;" 2>/dev/null || echo "-1"
-  end=$(date +%s%N)
-  latency=$(( (end - start) / 1000000 ))
+  start=$(python3 -c 'import time; print(int(time.time()*1000))')
+  if ! docker compose exec -T yb-2 ysqlsh -h yb-2 -tAc "SELECT id FROM perf_test WHERE id = 1;" >/dev/null 2>&1; then
+    echo "-1"
+    return
+  fi
+  end=$(python3 -c 'import time; print(int(time.time()*1000))')
+  latency=$(( end - start ))
   echo "$latency"
 }
 

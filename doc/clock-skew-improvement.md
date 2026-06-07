@@ -55,7 +55,7 @@ Step 10: Verify      → 集群恢复确认
 - `date -s "+500 milliseconds"` — 快进 500ms
 - `date -s "-1000 milliseconds"` — 回退 1000ms
 
-需要 `SYS_TIME` Linux capability（已添加到 docker-compose.yaml 的 yb-default 模板）。
+需要 `SYS_TIME` Linux capability（已添加到 compose/base.yaml 的 yb-default 模板）。
 
 ### 3.2 HLC 查询
 

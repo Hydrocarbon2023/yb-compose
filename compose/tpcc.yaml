@@ -1,0 +1,12 @@
+# TPC-C bench extension — go-tpc container for YugabyteDB
+# Usage:
+#   Build:  make build-tpcc
+#   Run:    docker compose -f compose/base.yaml -f compose/tpcc.yaml run --rm tpcc ...
+services:
+  tpcc:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.tpcc
+    image: yb-tpcc:latest
+    networks:
+      - default

@@ -1,5 +1,5 @@
 FROM alpine:latest
 RUN sed -i 's|https://dl-cdn.alpinelinux.org|https://mirrors.aliyun.com|g' /etc/apk/repositories \
     && apk add --no-cache bash docker-cli
-COPY scripts/chaosctl /bin/chaosctl
+COPY cmd/chaosctl/chaosctl /bin/chaosctl
 ENTRYPOINT ["/bin/bash", "/bin/chaosctl"]

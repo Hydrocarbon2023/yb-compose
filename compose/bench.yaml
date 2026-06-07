@@ -1,0 +1,8 @@
+# 压测扩展 - 自定义 pg 镜像预装 pgbench 等工具
+# 用法: docker compose -f compose/base.yaml -f compose/bench.yaml up -d pg
+services:
+  pg:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pg
+    image: yb-bench:latest

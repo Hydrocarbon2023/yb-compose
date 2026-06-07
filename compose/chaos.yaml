@@ -10,8 +10,8 @@
 services:
   chaosctl:
     build:
-      context: .
-      dockerfile: Dockerfile.chaosctl
+      context: ..
+      dockerfile: docker/Dockerfile.chaosctl
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     # host 网络: 可以直接 docker exec 解析容器名

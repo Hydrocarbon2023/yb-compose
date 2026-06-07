@@ -16,23 +16,34 @@ make experiment-all        # 自动依次执行全部实验
 
 ```
 .
-├── docker-compose.yaml          # 集群定义 (5 yb + rfNready)
-├── docker-compose.chaos.yaml    # 混沌工程控制器
-├── Dockerfile.chaosctl          # 混沌控制器镜像
-├── Makefile                     # 一键实验入口
 ├── .env                         # 基准环境配置 (NET_DELAY_MS=1)
 ├── .env.delay                   # 延迟环境配置 (NET_DELAY_MS=30)
+├── .gitignore
+├── Makefile                     # 一键实验入口
+├── compose/                     # Docker Compose 文件
+│   ├── base.yaml                # 集群定义 (5 yb + rfNready)
+│   ├── bench.yaml               # 压测扩展 (pgbench)
+│   ├── chaos.yaml               # 混沌工程控制器
+│   ├── dev.yaml                 # 开发容器
+│   └── tpcc.yaml                # TPC-C 压测 (go-tpc)
+├── docker/                      # Dockerfile
+│   ├── Dockerfile.chaosctl      # 混沌控制器镜像
+│   ├── Dockerfile.pg            # 自定义 pgbench 客户端镜像
+│   └── Dockerfile.tpcc          # TPC-C 基准测试镜像
+├── cmd/                         # 独立工具
+│   └── chaosctl/chaosctl        # 混沌工程控制器 CLI
 ├── README.md
-├── scripts/
-│   ├── chaosctl                 # 混沌工程控制器 CLI
+├── scripts/                     # 实验脚本
 │   ├── 01-setup-perf-test.sh    # 创建 perf_test 表并填充
 │   ├── 02-latency-bench.py      # 跨节点延迟基准测试
 │   ├── 02-latency-bench-persist.py  # 延迟基准测试 (持久连接版)
 │   ├── 03-consistency-test.sh   # 一致性级别 + 转账正确性
 │   ├── 04-failover-test.sh      # 故障切换 RTO/RPO
-│   ├── chaos-bench.sh           # 动态分区压测脚本
-│   ├── 07-flapping-node-test.sh # 震荡节点测试
-│   └── run-all.sh               # 全自动实验脚本
+│   ├── 05-clock-skew-partition.sh   # 时钟偏移 + 分区组合实验
+│   ├── 06-flapping-node-test.sh # 震荡节点测试
+│   ├── 07-chaos-bench.sh        # 动态分区压测脚本
+│   ├── 08-tpcc-benchmark.sh     # TPC-C 基准测试
+│   └── 09-scalability-test.sh   # 扩展性测试
 └── sql/
     ├── 01-hlc-clock.sql         # HLC 时钟同步实验
     ├── 02-tablespaces.sql       # Geo-Partitioning 表空间
@@ -54,14 +65,14 @@ make experiment-all        # 自动依次执行全部实验
 
 ```bash
 # 一键复现全部实验（容器内自动安装 make + python3）
-docker compose -f docker-compose.dev.yaml run --rm yblab make experiment-all
+docker compose -f compose/dev.yaml run --rm yblab make experiment-all
 
 # 运行单项实验
-docker compose -f docker-compose.dev.yaml run --rm yblab make experiment-wan
-docker compose -f docker-compose.dev.yaml run --rm yblab make experiment-failover-docker
+docker compose -f compose/dev.yaml run --rm yblab make experiment-wan
+docker compose -f compose/dev.yaml run --rm yblab make experiment-failover-docker
 
 # 进入交互式 Shell（调试用）
-docker compose -f docker-compose.dev.yaml run --rm yblab bash
+docker compose -f compose/dev.yaml run --rm yblab bash
 ```
 
 原理：将宿主机的 Docker socket (`/var/run/docker.sock`) 挂载到容器内，容器中的 docker CLI 直接操作宿主机的 Docker 守护进程，相当于在宿主机上运行。无需嵌套 Docker 或特权模式。
@@ -233,7 +244,7 @@ Phase 3 (恢复 25-30s): 立即恢复
 
 ### 实验 8: 时钟偏移实验
 
-**目的**: 操纵系统时钟验证 HLC 的单调性保证和安全机制。需要 Docker 容器支持 `SYS_TIME` capability（已在 docker-compose.yaml 中启用）。
+**目的**: 操纵系统时钟验证 HLC 的单调性保证和安全机制。需要 Docker 容器支持 `SYS_TIME` capability（已在 compose/base.yaml 中启用）。
 
 **先决条件**: 基准集群已启动 (`make up`)
 
@@ -332,7 +343,7 @@ make experiment-flapping
 ## 延迟模拟原理
 
 ```yaml
-# docker-compose.yaml 关键部分:
+# compose/base.yaml 关键部分:
 cap_add:
   - NET_ADMIN     # 允许修改网络队列
   - SYS_TIME      # 允许时钟操作 (时钟偏移实验)

@@ -505,7 +505,7 @@ scenario_asymmetric_delay() {
   echo "=== Delay distribution ==="
   for n in "${NODES[@]}"; do
     local delay_info
-    delay_info=$(yb_exec "$n" "tc qdisc show dev eth0 2>/dev/null | grep -oP 'delay [\d.]+ms' || echo 'none'" 2>/dev/null)
+    delay_info=$(yb_exec "$n" "tc qdisc show dev eth0 2>/dev/null | grep -oE 'delay [0-9.]+ms' || echo 'none'" 2>/dev/null)
     echo "  $(resolve_node_name "$n"): $delay_info"
   done
   echo ""
