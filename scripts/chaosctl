@@ -29,6 +29,8 @@ readonly NODES=(
   "${COMPOSE_PROJECT}-yb-1"
   "${COMPOSE_PROJECT}-yb-2"
   "${COMPOSE_PROJECT}-yb-3"
+  "${COMPOSE_PROJECT}-yb-4"
+  "${COMPOSE_PROJECT}-yb-5"
 )
 readonly STATE_FILE="/tmp/chaosctl.state"
 
@@ -41,6 +43,8 @@ resolve_node() {
     yb-compose-yb-1|yb-1|region1|node1) echo "${COMPOSE_PROJECT}-yb-1" ;;
     yb-compose-yb-2|yb-2|region2|node2) echo "${COMPOSE_PROJECT}-yb-2" ;;
     yb-compose-yb-3|yb-3|region3|node3) echo "${COMPOSE_PROJECT}-yb-3" ;;
+    yb-compose-yb-4|yb-4|region4|node4) echo "${COMPOSE_PROJECT}-yb-4" ;;
+    yb-compose-yb-5|yb-5|region5|node5) echo "${COMPOSE_PROJECT}-yb-5" ;;
     *) echo "" ;;
   esac
 }
@@ -51,6 +55,8 @@ resolve_node_name() {
     *yb-1) echo "region1" ;;
     *yb-2) echo "region2" ;;
     *yb-3) echo "region3" ;;
+    *yb-4) echo "region4" ;;
+    *yb-5) echo "region5" ;;
     *) echo "$node" ;;
   esac
 }
@@ -352,6 +358,7 @@ cmd_delay_set() {
   local delay_ms="${2:-30}"
   local jitter="${3:-}"
   local loss="${4:-}"
+  local rate="${5:-}"    # 可选: 带宽限制, 如 "10mbit"
 
   local node
   node=$(resolve_node "$target")
@@ -361,17 +368,29 @@ cmd_delay_set() {
   local name
   name=$(resolve_node_name "$node")
 
-  # 清除旧的 qdisc (如果有)
+  # 清除旧的 qdisc
   yb_exec "$node" "tc qdisc del dev eth0 root 2>/dev/null" || true
 
-  # 构建 netem 参数
-  local netem_args="delay ${delay_ms}ms"
-  [ -n "$jitter" ] && netem_args="$netem_args ${jitter}ms"
-  [ -n "$loss" ]   && netem_args="$netem_args loss ${loss}%"
+  if [ -n "$rate" ]; then
+    # 链式 qdisc: netem (延迟/jitter/丢包) → tbf (带宽限制)
+    local netem_args="delay ${delay_ms}ms"
+    [ -n "$jitter" ] && netem_args="$netem_args ${jitter}ms"
+    [ -n "$loss" ]   && netem_args="$netem_args loss ${loss}%"
 
-  echo ">>> Setting delay on $name [$node]: $netem_args"
-  yb_exec "$node" "tc qdisc add dev eth0 root netem $netem_args"
-  save_state "$node" "DELAY $netem_args"
+    echo ">>> Setting delay+rate on $name [$node]: $netem_args rate $rate"
+    yb_exec "$node" "tc qdisc add dev eth0 root handle 1: netem $netem_args"
+    yb_exec "$node" "tc qdisc add dev eth0 parent 1:1 handle 10: tbf rate $rate burst 32kbit latency 50ms"
+    save_state "$node" "DELAY $netem_args RATE $rate"
+  else
+    # 简单 netem
+    local netem_args="delay ${delay_ms}ms"
+    [ -n "$jitter" ] && netem_args="$netem_args ${jitter}ms"
+    [ -n "$loss" ]   && netem_args="$netem_args loss ${loss}%"
+
+    echo ">>> Setting delay on $name [$node]: $netem_args"
+    yb_exec "$node" "tc qdisc add dev eth0 root netem $netem_args"
+    save_state "$node" "DELAY $netem_args"
+  fi
   echo "  done"
 }
 
@@ -473,13 +492,15 @@ scenario_asymmetric_delay() {
   echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
   echo "  Scenario: ASYMMETRIC DELAY"
   echo "  Effect:   Each node gets different latency"
-  echo "  region1=10ms, region2=50ms, region3=100ms"
+  echo "  region1=10ms, region2=25ms, region3=50ms, region4=75ms, region5=100ms"
   echo "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
   echo ""
 
   cmd_delay_set "region1" "10"
-  cmd_delay_set "region2" "50"
-  cmd_delay_set "region3" "100"
+  cmd_delay_set "region2" "25"
+  cmd_delay_set "region3" "50"
+  cmd_delay_set "region4" "75"
+  cmd_delay_set "region5" "100"
 
   echo ""
   echo "=== Delay distribution ==="
@@ -548,7 +569,7 @@ cmd_scenario_list() {
   echo "    Observe Raft leader re-election and cluster recovery."
   echo ""
   echo "  asymmetric-delay"
-  echo "    Set different delays on each node (10/50/100ms)."
+  echo "    Set different delays on each node (10/25/50/75/100ms)."
   echo "    Observe leader preference and read latency distribution."
   echo ""
   echo "  cascading-failure [duration=15]"
@@ -595,7 +616,7 @@ cmd_help() {
   echo "  partition heal [node]                恢复节点 (不指定=全部)"
   echo ""
   echo "  延迟注入:"
-  echo "  delay set <node> <ms> [jitter] [loss%]"
+  echo "  delay set <node> <ms> [jitter] [loss%] [rate]"
   echo "  delay clear [node]"
   echo ""
   echo "  预设场景:"
@@ -606,7 +627,7 @@ cmd_help() {
   echo "  chaosctl status"
   echo "  chaosctl partition isolate yb-1"
   echo "  chaosctl partition heal region1"
-  echo "  chaosctl delay set region2 50 5 1"
+  echo "  chaosctl delay set region2 50 5 1 10mbit"
   echo "  chaosctl scenario run network-partition yb-1 30"
   echo "  chaosctl scenario run cascading-failure"
   echo ""
@@ -634,7 +655,7 @@ main() {
     delay)
       local sub="${1:-help}"; shift || true
       case "$sub" in
-        set)   cmd_delay_set "${1:?Usage: delay set <node> <ms> [jitter] [loss%]}" "${2:-30}" "${3:-}" "${4:-}" ;;
+        set)   cmd_delay_set "${1:?Usage: delay set <node> <ms> [jitter] [loss%] [rate]}" "${2:-30}" "${3:-}" "${4:-}" "${5:-}" ;;
         clear) cmd_delay_clear "${1:-all}" ;;
         *)     echo "Usage: delay {set|clear} [args]" ;;
       esac

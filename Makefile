@@ -1,6 +1,6 @@
 # YugabyteDB 测评实验 Makefile
 # =============================
-# make up        - 启动基准集群 (RF=3, 无延迟)
+# make up        - 启动基准集群 (5 节点, 无延迟)
 # make up-delay  - 启动延迟环境 (NET_DELAY_MS=30)
 # make status    - 查看集群状态
 # make psql      - 连接 yb-1
@@ -11,18 +11,20 @@
 .PHONY: up up-delay status psql bench bench-delay clean
 
 up:
-	docker compose up -d --scale yb=3 --no-recreate
-	docker compose wait rf3isready
+	docker compose up -d --scale yb=5 --no-recreate
+	docker compose wait rfNready
 	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;"
 
 up-delay:
-	docker compose --env-file=.env.delay up -d --scale yb=3 --no-recreate
-	docker compose wait rf3isready
+	docker compose --env-file=.env.delay up -d --scale yb=5 --no-recreate
+	docker compose wait rfNready
 	@sleep 3
 	@echo "=== 验证延迟注入 ==="
-	docker compose exec yb-compose-yb-1 tc qdisc show dev eth0 2>/dev/null | grep -o 'delay [0-9]*ms' || echo "(tc not available)"
-	docker compose exec yb-compose-yb-2 tc qdisc show dev eth0 2>/dev/null | grep -o 'delay [0-9]*ms' || true
-	docker compose exec yb-compose-yb-3 tc qdisc show dev eth0 2>/dev/null | grep -o 'delay [0-9]*ms' || true
+	for i in 1 2 3 4 5; do \
+		n=yb-compose-yb-$$i; \
+		d="$$(docker compose exec $$n tc qdisc show dev eth0 2>/dev/null | grep -o 'delay [0-9]*ms' || echo 'none')"; \
+		echo "  $$n: $$d"; \
+	done
 
 status:
 	docker compose ps
@@ -38,12 +40,12 @@ build-bench:
 
 bench: up
 	@echo ">>> Phase 2.1: HLC 时钟"
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -f sql/01-hlc-clock.sql
+	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -f sql/01-hlc-clock.sql 2>/dev/null || true
 	@echo ""
 	@echo ">>> Phase 2.4: 表空间"
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "CREATE TABLESPACE region1 WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region1\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "CREATE TABLESPACE region2 WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region2\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true
-	docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "CREATE TABLESPACE region3 WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region3\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true
+	for i in 1 2 3 4 5; do \
+		docker compose exec -T yb ysqlsh -h yb-compose-yb-1 -c "CREATE TABLESPACE region$$i WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region$$i\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true; \
+	done
 	@echo "  Tablespaces created"
 	@echo ""
 	@echo ">>> Phase 3.1: perf_test + 延迟基准"
