@@ -1,0 +1,11 @@
+{
+  "run_id": "smoke-fail",
+  "target": "definitely-not-a-target",
+  "command": "make definitely-not-a-target",
+  "started_at": "2026-06-08T08:10:30Z",
+  "ended_at": "2026-06-08T08:10:30Z",
+  "duration_sec": 0,
+  "exit_code": 2,
+  "git_commit": "53b5bf0",
+  "log": "output.log"
+}

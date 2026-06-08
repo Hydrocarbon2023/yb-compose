@@ -1,0 +1,107 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-09-flapping-node.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 09: 震荡节点测试 (Flapping Node)             ║
+║     12 cycles × 5s × 2 = 120s total     ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 启动基准集群 ===
+ Container yb-compose-yb-3-1 Started 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-rfNready-1 Started 
+CREATE TABLE
+INSERT 0 1
+[32m  集群 + 表就绪[0m
+
+=== Phase 1: Baseline (15s) ===
+
+  [baseline 1/5] latency=132ms
+  [baseline 2/5] latency=204ms
+  [baseline 3/5] latency=135ms
+  [baseline 4/5] latency=185ms
+  [baseline 5/5] latency=120ms
+
+  Baseline: avg=155ms  P50=135ms  P99=204ms
+
+=== Phase 2: Flapping Node ===
+  Starting background write + flapping scenario...
+
+  [flap 1/40] latency=143ms (healthy)
+  [flap 2/40] latency=107ms (healthy)
+  [flap 3/40] latency=145ms (healthy)
+  [flap 4/40] latency=157ms (healthy)
+  [flap 5/40] latency=184ms (healthy)
+  [flap 6/40] latency=98ms (healthy)
+  [flap 7/40] latency=128ms (healthy)
+  [flap 8/40] latency=154ms (healthy)
+  [flap 9/40] latency=112ms (healthy)
+  [flap 10/40] latency=156ms (healthy)
+  [flap 11/40] latency=196ms (healthy)
+  [flap 12/40] latency=88ms (healthy)
+  [flap 13/40] latency=180ms (healthy)
+  [flap 14/40] latency=162ms (healthy)
+  [flap 15/40] latency=163ms (healthy)
+  [flap 16/40] latency=113ms (healthy)
+  [flap 17/40] latency=161ms (healthy)
+  [flap 18/40] latency=125ms (healthy)
+  [flap 19/40] latency=152ms (healthy)
+  [flap 20/40] latency=165ms (healthy)
+  [flap 21/40] latency=166ms (healthy)
+  [flap 22/40] latency=138ms (healthy)
+  [flap 23/40] latency=170ms (healthy)
+  [flap 24/40] latency=148ms (healthy)
+  [flap 25/40] latency=101ms (healthy)
+  [flap 26/40] latency=142ms (healthy)
+  [flap 27/40] latency=98ms (healthy)
+  [flap 28/40] latency=110ms (healthy)
+  [flap 29/40] latency=98ms (healthy)
+  [flap 30/40] latency=105ms (healthy)
+  [flap 31/40] latency=169ms (healthy)
+  [flap 32/40] latency=143ms (healthy)
+  [flap 33/40] latency=110ms (healthy)
+  [flap 34/40] latency=163ms (healthy)
+  [flap 35/40] latency=156ms (healthy)
+  [flap 36/40] latency=111ms (healthy)
+  [flap 37/40] latency=132ms (healthy)
+  [flap 38/40] latency=3670ms (healthy)
+  [flap 39/40] latency=182ms (healthy)
+  [flap 40/40] latency=100ms (healthy)
+
+=== Phase 3: Recovery (15s) ===
+
+  [recovery 1/5] latency=186ms
+  [recovery 2/5] latency=152ms
+  [recovery 3/5] latency=173ms
+  [recovery 4/5] latency=118ms
+  [recovery 5/5] latency=195ms
+
+  Recovery: avg=164ms  P50=173ms  P99=195ms
+
+=== Step 4: 数据完整性验证 ===
+  Total rows after flapping: 269
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                    EXPERIMENT 09 SUMMARY                                ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  Phase                  │ Samples │  Avg(ms) │  P50(ms) │  P99(ms) ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  Baseline               │      5 │      155 │      135 │      204 ║
+║  Flapping (healthy)     │     40 │      227 │      145 │     3670 ║
+║  Flapping (isolated)    │      0 │        0 │        0 │        0 ║
+║  Flapping (combined)    │     40 │      227 │      145 │     3670 ║
+║  Recovery               │      5 │      164 │      173 │      195 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+  P99 Degradation: 18.0× vs baseline
+  Recovery Ratio: 1.1× vs baseline
+
+  关键发现:
+  1. 隔离窗口可能导致写入失败或长尾延迟，取决于 leader 和客户端路径
+  2. P99 延迟在震荡或恢复阶段可能升高
+  3. 震荡停止后集群完全恢复, 无级联故障
+  4. 数据完整性保持 (所有已提交数据不丢失)
+
+[32mExperiment 09 完成.[0m
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

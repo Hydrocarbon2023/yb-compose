@@ -1,0 +1,124 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-03-delay-latency.sh --iter 50
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 03: 延迟环境基准测试                          ║
+║     延迟梯度: 30 / 60 / 90 / 120 / 150ms                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+  迭代次数/节点/操作: 50
+
+=== Step 1: 启动延迟集群 ===
+ Container yb-compose-yb-2-1 Started 
+ Container yb-compose-yb-5-1 Started 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-ui-15433-1 Started 
+ Container yb-compose-rfNready-1 Started 
+[32m  集群已启动[0m
+
+  注入 tc netem 延迟 (30/60/90/120/150ms)...
+    yb-1: 30ms ✓
+    yb-2: 60ms ✓
+    yb-3: 90ms ✓
+    yb-4: 120ms ✓
+    yb-5: 150ms ✓
+
+  验证延迟配置:
+    yb-1   configured=30  ms actual=30  ms
+    yb-2   configured=60  ms actual=60  ms
+    yb-3   configured=90  ms actual=90  ms
+    yb-4   configured=120 ms actual=120 ms
+    yb-5   configured=150 ms actual=150 ms
+
+=== Step 2: 跨节点 RTT 测量 ===
+
+  Src → Dst :   RTT (ms)  Src → Dst :   RTT (ms)
+  ---------------------------------------------------------
+  yb-1 → yb-2 :   90.124ms
+  yb-1 → yb-3 :  120.135ms
+  yb-1 → yb-4 :  150.188ms
+  yb-1 → yb-5 :  180.083ms
+  yb-2 → yb-3 :  150.176ms
+  yb-2 → yb-4 :  180.151ms
+  yb-2 → yb-5 :  210.106ms
+  yb-3 → yb-4 :  210.165ms
+  yb-3 → yb-5 :  240.099ms
+  yb-4 → yb-5 :  270.125ms
+
+=== Step 3: 创建 perf_test 表 ===
+CREATE TABLE
+  填充 10000 行数据...
+INSERT 0 10000
+[32m  perf_test 就绪 (10000 行)[0m
+
+=== Step 4: 启动压测客户端 ===
+[32m  客户端就绪 (容器内网络, 无额外延迟)[0m
+
+=== Step 5: 延迟基准测试 ===
+
+
+[1m  --- region1 (30ms egress) ---[0m
+    READ    1/50    READ    2/50    READ    3/50    READ    4/50    READ    5/50    READ    6/50    READ    7/50    READ    8/50    READ    9/50    READ   10/50    READ   11/50    READ   12/50    READ   13/50    READ   14/50    READ   15/50    READ   16/50    READ   17/50    READ   18/50    READ   19/50    READ   20/50    READ   21/50    READ   22/50    READ   23/50    READ   24/50    READ   25/50    READ   26/50    READ   27/50    READ   28/50    READ   29/50    READ   30/50    READ   31/50    READ   32/50    READ   33/50    READ   34/50    READ   35/50    READ   36/50    READ   37/50    READ   38/50    READ   39/50    READ   40/50    READ   41/50    READ   42/50    READ   43/50    READ   44/50    READ   45/50    READ   46/50    READ   47/50    READ   48/50    READ   49/50    READ   50/50
+    WRITE   1/50    WRITE   2/50    WRITE   3/50    WRITE   4/50    WRITE   5/50    WRITE   6/50    WRITE   7/50    WRITE   8/50    WRITE   9/50    WRITE  10/50    WRITE  11/50    WRITE  12/50    WRITE  13/50    WRITE  14/50    WRITE  15/50    WRITE  16/50    WRITE  17/50    WRITE  18/50    WRITE  19/50    WRITE  20/50    WRITE  21/50    WRITE  22/50    WRITE  23/50    WRITE  24/50    WRITE  25/50    WRITE  26/50    WRITE  27/50    WRITE  28/50    WRITE  29/50    WRITE  30/50    WRITE  31/50    WRITE  32/50    WRITE  33/50    WRITE  34/50    WRITE  35/50    WRITE  36/50    WRITE  37/50    WRITE  38/50    WRITE  39/50    WRITE  40/50    WRITE  41/50    WRITE  42/50    WRITE  43/50    WRITE  44/50    WRITE  45/50    WRITE  46/50    WRITE  47/50    WRITE  48/50    WRITE  49/50    WRITE  50/50
+    READ : avg=  129.10ms  P50=  134.95ms  P99=  168.57ms
+    WRITE: avg=  126.76ms  P50=  126.57ms  P99=  159.08ms
+
+[1m  --- region2 (60ms egress) ---[0m
+    READ    1/50    READ    2/50    READ    3/50    READ    4/50    READ    5/50    READ    6/50    READ    7/50    READ    8/50    READ    9/50    READ   10/50    READ   11/50    READ   12/50    READ   13/50    READ   14/50    READ   15/50    READ   16/50    READ   17/50    READ   18/50    READ   19/50    READ   20/50    READ   21/50    READ   22/50    READ   23/50    READ   24/50    READ   25/50    READ   26/50    READ   27/50    READ   28/50    READ   29/50    READ   30/50    READ   31/50    READ   32/50    READ   33/50    READ   34/50    READ   35/50    READ   36/50    READ   37/50    READ   38/50    READ   39/50    READ   40/50    READ   41/50    READ   42/50    READ   43/50    READ   44/50    READ   45/50    READ   46/50    READ   47/50    READ   48/50    READ   49/50    READ   50/50
+    WRITE   1/50    WRITE   2/50    WRITE   3/50    WRITE   4/50    WRITE   5/50    WRITE   6/50    WRITE   7/50    WRITE   8/50    WRITE   9/50    WRITE  10/50    WRITE  11/50    WRITE  12/50    WRITE  13/50    WRITE  14/50    WRITE  15/50    WRITE  16/50    WRITE  17/50    WRITE  18/50    WRITE  19/50    WRITE  20/50    WRITE  21/50    WRITE  22/50    WRITE  23/50    WRITE  24/50    WRITE  25/50    WRITE  26/50    WRITE  27/50    WRITE  28/50    WRITE  29/50    WRITE  30/50    WRITE  31/50    WRITE  32/50    WRITE  33/50    WRITE  34/50    WRITE  35/50    WRITE  36/50    WRITE  37/50    WRITE  38/50    WRITE  39/50    WRITE  40/50    WRITE  41/50    WRITE  42/50    WRITE  43/50    WRITE  44/50    WRITE  45/50    WRITE  46/50    WRITE  47/50    WRITE  48/50    WRITE  49/50    WRITE  50/50
+    READ : avg=  160.08ms  P50=  164.24ms  P99=  207.87ms
+    WRITE: avg=  156.53ms  P50=  158.67ms  P99=  183.53ms
+
+[1m  --- region3 (90ms egress) ---[0m
+    READ    1/50    READ    2/50    READ    3/50    READ    4/50    READ    5/50    READ    6/50    READ    7/50    READ    8/50    READ    9/50    READ   10/50    READ   11/50    READ   12/50    READ   13/50    READ   14/50    READ   15/50    READ   16/50    READ   17/50    READ   18/50    READ   19/50    READ   20/50    READ   21/50    READ   22/50    READ   23/50    READ   24/50    READ   25/50    READ   26/50    READ   27/50    READ   28/50    READ   29/50    READ   30/50    READ   31/50    READ   32/50    READ   33/50    READ   34/50    READ   35/50    READ   36/50    READ   37/50    READ   38/50    READ   39/50    READ   40/50    READ   41/50    READ   42/50    READ   43/50    READ   44/50    READ   45/50    READ   46/50    READ   47/50    READ   48/50    READ   49/50    READ   50/50
+    WRITE   1/50    WRITE   2/50    WRITE   3/50    WRITE   4/50    WRITE   5/50    WRITE   6/50    WRITE   7/50    WRITE   8/50    WRITE   9/50    WRITE  10/50    WRITE  11/50    WRITE  12/50    WRITE  13/50    WRITE  14/50    WRITE  15/50    WRITE  16/50    WRITE  17/50    WRITE  18/50    WRITE  19/50    WRITE  20/50    WRITE  21/50    WRITE  22/50    WRITE  23/50    WRITE  24/50    WRITE  25/50    WRITE  26/50    WRITE  27/50    WRITE  28/50    WRITE  29/50    WRITE  30/50    WRITE  31/50    WRITE  32/50    WRITE  33/50    WRITE  34/50    WRITE  35/50    WRITE  36/50    WRITE  37/50    WRITE  38/50    WRITE  39/50    WRITE  40/50    WRITE  41/50    WRITE  42/50    WRITE  43/50    WRITE  44/50    WRITE  45/50    WRITE  46/50    WRITE  47/50    WRITE  48/50    WRITE  49/50    WRITE  50/50
+    READ : avg=  189.08ms  P50=  189.54ms  P99=  286.06ms
+    WRITE: avg=  187.60ms  P50=  189.87ms  P99=  227.63ms
+
+[1m  --- region4 (120ms egress) ---[0m
+    READ    1/50    READ    2/50    READ    3/50    READ    4/50    READ    5/50    READ    6/50    READ    7/50    READ    8/50    READ    9/50    READ   10/50    READ   11/50    READ   12/50    READ   13/50    READ   14/50    READ   15/50    READ   16/50    READ   17/50    READ   18/50    READ   19/50    READ   20/50    READ   21/50    READ   22/50    READ   23/50    READ   24/50    READ   25/50    READ   26/50    READ   27/50    READ   28/50    READ   29/50    READ   30/50    READ   31/50    READ   32/50    READ   33/50    READ   34/50    READ   35/50    READ   36/50    READ   37/50    READ   38/50    READ   39/50    READ   40/50    READ   41/50    READ   42/50    READ   43/50    READ   44/50    READ   45/50    READ   46/50    READ   47/50    READ   48/50    READ   49/50    READ   50/50
+    WRITE   1/50    WRITE   2/50    WRITE   3/50    WRITE   4/50    WRITE   5/50    WRITE   6/50    WRITE   7/50    WRITE   8/50    WRITE   9/50    WRITE  10/50    WRITE  11/50    WRITE  12/50    WRITE  13/50    WRITE  14/50    WRITE  15/50    WRITE  16/50    WRITE  17/50    WRITE  18/50    WRITE  19/50    WRITE  20/50    WRITE  21/50    WRITE  22/50    WRITE  23/50    WRITE  24/50    WRITE  25/50    WRITE  26/50    WRITE  27/50    WRITE  28/50    WRITE  29/50    WRITE  30/50    WRITE  31/50    WRITE  32/50    WRITE  33/50    WRITE  34/50    WRITE  35/50    WRITE  36/50    WRITE  37/50    WRITE  38/50    WRITE  39/50    WRITE  40/50    WRITE  41/50    WRITE  42/50    WRITE  43/50    WRITE  44/50    WRITE  45/50    WRITE  46/50    WRITE  47/50    WRITE  48/50    WRITE  49/50    WRITE  50/50
+    READ : avg=  222.36ms  P50=  225.49ms  P99=  321.98ms
+    WRITE: avg=  219.07ms  P50=  219.23ms  P99=  250.36ms
+
+[1m  --- region5 (150ms egress) ---[0m
+    READ    1/50    READ    2/50    READ    3/50    READ    4/50    READ    5/50    READ    6/50    READ    7/50    READ    8/50    READ    9/50    READ   10/50    READ   11/50    READ   12/50    READ   13/50    READ   14/50    READ   15/50    READ   16/50    READ   17/50    READ   18/50    READ   19/50    READ   20/50    READ   21/50    READ   22/50    READ   23/50    READ   24/50    READ   25/50    READ   26/50    READ   27/50    READ   28/50    READ   29/50    READ   30/50    READ   31/50    READ   32/50    READ   33/50    READ   34/50    READ   35/50    READ   36/50    READ   37/50    READ   38/50    READ   39/50    READ   40/50    READ   41/50    READ   42/50    READ   43/50    READ   44/50    READ   45/50    READ   46/50    READ   47/50    READ   48/50    READ   49/50    READ   50/50
+    WRITE   1/50    WRITE   2/50    WRITE   3/50    WRITE   4/50    WRITE   5/50    WRITE   6/50    WRITE   7/50    WRITE   8/50    WRITE   9/50    WRITE  10/50    WRITE  11/50    WRITE  12/50    WRITE  13/50    WRITE  14/50    WRITE  15/50    WRITE  16/50    WRITE  17/50    WRITE  18/50    WRITE  19/50    WRITE  20/50    WRITE  21/50    WRITE  22/50    WRITE  23/50    WRITE  24/50    WRITE  25/50    WRITE  26/50    WRITE  27/50    WRITE  28/50    WRITE  29/50    WRITE  30/50    WRITE  31/50    WRITE  32/50    WRITE  33/50    WRITE  34/50    WRITE  35/50    WRITE  36/50    WRITE  37/50    WRITE  38/50    WRITE  39/50    WRITE  40/50    WRITE  41/50    WRITE  42/50    WRITE  43/50    WRITE  44/50    WRITE  45/50    WRITE  46/50    WRITE  47/50    WRITE  48/50    WRITE  49/50    WRITE  50/50
+    READ : avg=  251.40ms  P50=  251.25ms  P99=  376.54ms
+    WRITE: avg=  246.73ms  P50=  251.76ms  P99=  273.03ms
+
+=== Step 6: 延迟线性分析 ===
+
+  延迟与 egress 延迟关系 (线性回归):
+
+  节点               │   Egress │  读 avg │  写 avg
+  ─────────────────────────┼──────────┼──────────┼──────────
+  region1 (30ms egress) │       30ms │   129.10 │   126.76
+  region2 (60ms egress) │       60ms │   160.08 │   156.53
+  region3 (90ms egress) │       90ms │   189.08 │   187.60
+  region4 (120ms egress) │      120ms │   222.36 │   219.07
+  region5 (150ms egress) │      150ms │   251.40 │   246.73
+
+  预期回归关系: latency ≈ β × egress + α
+  doc_test 实测参考: latency ≈ 0.86 × egress + 70ms (R² ≈ 0.998)
+
+╔══════════════════════════════════════════════════════════════════════╗
+║                 EXPERIMENT 03 SUMMARY                               ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  节点     │   Egress │ 读 avg(ms) │ 写 avg(ms) │ RTT 范围 ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  yb-1       │       30ms │     129.10 │     126.76 │ 90.124-270.125ms ║
+║  yb-2       │       60ms │     160.08 │     156.53 │ 90.124-270.125ms ║
+║  yb-3       │       90ms │     189.08 │     187.60 │ 90.124-270.125ms ║
+║  yb-4       │      120ms │     222.36 │     219.07 │ 90.124-270.125ms ║
+║  yb-5       │      150ms │     251.40 │     246.73 │ 90.124-270.125ms ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+  关键发现:
+  1. 读写延迟与 egress 延迟呈线性关系 (每 +30ms egress ≈ +30ms 延迟)
+  2. 跨节点 RTT = 源 egress + 目标 egress (e.g. yb-1→yb-5: 30+150=180ms)
+  3. P99 延迟在最高 egress (150ms) 条件下约 250-350ms
+
+[32mExperiment 03 完成.[0m
+yb-latency-delay-client-3297654
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

@@ -1,0 +1,329 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-11-scalability.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 11: 扩展性测试 (Scalability)                 ║
+║     测试节点数: 5 3 1                                    ║
+║     pgbench: 16 clients, 60s, scale=1          ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 构建 pgbench 镜像 ===
+#11 resolving provenance for metadata file
+#11 DONE 0.0s
+ Image yb-bench:latest Built 
+[32m  镜像就绪[0m
+
+
+╔══════════════════════════════════════════════════════════════╗
+║  Testing with N=5 node(s)                                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+  清理环境...
+  启动节点: yb-1 yb-2 yb-3 yb-4 yb-5
+ Container yb-compose-yb-1-1 Started 
+ Container yb-compose-yb-2-1 Started 
+ Container yb-compose-yb-5-1 Started 
+ Container yb-compose-yb-4-1 Started 
+ Container yb-compose-yb-3-1 Started 
+  等待节点就绪...
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - no response
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - no response
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - no response
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - accepting connections
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - accepting connections
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - accepting connections
+c2df2be96f44:5433 - no response
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - accepting connections
+c2df2be96f44:5433 - accepting connections
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - accepting connections
+c2df2be96f44:5433 - accepting connections
+6aea5b761a75:5433 - no response
+2ce487c5485f:5433 - accepting connections
+673bd3f89dbe:5433 - accepting connections
+43f73a785f89:5433 - accepting connections
+c2df2be96f44:5433 - accepting connections
+6aea5b761a75:5433 - accepting connections
+  所有 5 节点就绪 (20 s)
+  YB-Master 可见 5 节点
+  集群拓扑:
+     host     | cloud | region  | zone 
+--------------+-------+---------+------
+ 2ce487c5485f | cloud | region1 | zone
+ 43f73a785f89 | cloud | region3 | zone
+ 673bd3f89dbe | cloud | region2 | zone
+ 6aea5b761a75 | cloud | region5 | zone
+ c2df2be96f44 | cloud | region4 | zone
+(5 rows)
+
+
+  初始化 pgbench (scale=1)...
+DETAIL:  Concurrent DMLs may not be reflected in the new table.
+HINT:  See https://github.com/yugabyte/yugabyte-db/issues/19860. Set 'ysql_suppress_unsafe_alter_notice' yb-tserver gflag to true to suppress this notice.
+done in 7.30 s (drop tables 0.54 s, create tables 1.52 s, client-side generate 1.56 s, vacuum 0.42 s, primary keys 3.28 s).
+
+  运行 pgbench (16 clients, 60s)...
+
+[32m  N=5: TPS = 494.285445, Avg Latency = 32.370 ms[0m
+number of threads: 16
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 29619
+number of failed transactions: 0 (0.000%)
+latency average = 32.370 ms
+initial connection time = 102.505 ms
+tps = 494.285445 (without initial connection time)
+
+
+╔══════════════════════════════════════════════════════════════╗
+║  Testing with N=3 node(s)                                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+  清理环境...
+  启动节点: yb-1 yb-2 yb-3
+ Container yb-compose-yb-1-1 Starting 
+ Container yb-compose-yb-2-1 Starting 
+ Container yb-compose-yb-2-1 Started 
+ Container yb-compose-yb-1-1 Started 
+ Container yb-compose-yb-3-1 Started 
+  等待节点就绪...
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - no response
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - no response
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - accepting connections
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - accepting connections
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - accepting connections
+31c2411dd859:5433 - no response
+19b4b61a0457:5433 - accepting connections
+31fe1975e3e9:5433 - accepting connections
+31c2411dd859:5433 - accepting connections
+  所有 3 节点就绪 (17 s)
+  YB-Master 可见 3 节点
+  集群拓扑:
+     host     | cloud | region  | zone 
+--------------+-------+---------+------
+ 19b4b61a0457 | cloud | region1 | zone
+ 31c2411dd859 | cloud | region3 | zone
+ 31fe1975e3e9 | cloud | region2 | zone
+(3 rows)
+
+
+  初始化 pgbench (scale=1)...
+DETAIL:  Concurrent DMLs may not be reflected in the new table.
+HINT:  See https://github.com/yugabyte/yugabyte-db/issues/19860. Set 'ysql_suppress_unsafe_alter_notice' yb-tserver gflag to true to suppress this notice.
+done in 7.80 s (drop tables 1.02 s, create tables 1.46 s, client-side generate 1.57 s, vacuum 0.38 s, primary keys 3.37 s).
+
+  运行 pgbench (16 clients, 60s)...
+
+[32m  N=3: TPS = 435.436326, Avg Latency = 36.745 ms[0m
+number of threads: 16
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 26103
+number of failed transactions: 0 (0.000%)
+latency average = 36.745 ms
+initial connection time = 86.812 ms
+tps = 435.436326 (without initial connection time)
+
+
+╔══════════════════════════════════════════════════════════════╗
+║  Testing with N=1 node(s)                                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+  清理环境...
+  启动节点: yb-1
+ Network yb-compose_default Created 
+ Container yb-compose-yb-1-1 Creating 
+ Container yb-compose-yb-1-1 Created 
+ Container yb-compose-yb-1-1 Starting 
+ Container yb-compose-yb-1-1 Started 
+  等待节点就绪...
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - no response
+e95172d2e89f:5433 - accepting connections
+  所有 1 节点就绪 (13 s)
+  YB-Master 可见 1 节点
+  集群拓扑:
+     host     | cloud | region  | zone 
+--------------+-------+---------+------
+ e95172d2e89f | cloud | region1 | zone
+(1 row)
+
+
+  初始化 pgbench (scale=1)...
+DETAIL:  Concurrent DMLs may not be reflected in the new table.
+HINT:  See https://github.com/yugabyte/yugabyte-db/issues/19860. Set 'ysql_suppress_unsafe_alter_notice' yb-tserver gflag to true to suppress this notice.
+done in 5.80 s (drop tables 1.04 s, create tables 1.07 s, client-side generate 1.08 s, vacuum 0.31 s, primary keys 2.30 s).
+
+  运行 pgbench (16 clients, 60s)...
+
+[32m  N=1: TPS = 808.654738, Avg Latency = 19.786 ms[0m
+number of threads: 16
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 48470
+number of failed transactions: 0 (0.000%)
+latency average = 19.786 ms
+initial connection time = 85.277 ms
+tps = 808.654738 (without initial connection time)
+
+=== 清理环境 ===
+
+
+╔══════════════════════════════════════════════════════════════╗
+║              SCALABILITY TEST SUMMARY                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  Nodes      │ TPS          │ Latency(ms)  │ Scale Factor   ║
+╠══════════════════════════════════════════════════════════════╣
+║  5          │ 494.285445   │ 32.370       │ 1.00×         ║
+║  3          │ 435.436326   │ 36.745       │ 0.88×         ║
+║  1          │ 808.654738   │ 19.786       │ 1.64×         ║
+╚══════════════════════════════════════════════════════════════╝
+
+  线性扩展分析:
+  - 实际扩展系数见 'Scale Factor' 列，不预设增加节点一定提升吞吐量
+  - 小数据集、单入口和 RF 差异会让 Raft/协调开销主导结果
+  - 按 doc_test 历史结果，N=3/N=5 的 TPS 可能低于 N=1
+
+  影响扩展性的因素:
+  1. Raft 共识开销: 每次写入需多数派确认
+  2. Tablet Leader 分布: 可能导致热点
+  3. 网络延迟: 跨节点 RTT (无延迟环境下影响极小)
+  4. Docker 资源竞争: 同主机容器 CPU 争用
+
+[32mExperiment 11 完成.[0m
+  清理 Docker 资源...
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

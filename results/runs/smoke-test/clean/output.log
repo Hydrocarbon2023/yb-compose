@@ -1,0 +1,3 @@
+docker compose -p yb-compose -f compose/base.yaml down -v --remove-orphans 2>/dev/null || true
+docker network rm yb-compose_default 2>/dev/null || true
+docker rm -f yb-latency-client- yb-latency-persist- 2>/dev/null || true

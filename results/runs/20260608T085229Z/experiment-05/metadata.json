@@ -1,0 +1,11 @@
+{
+  "run_id": "20260608T085229Z",
+  "target": "experiment-05",
+  "command": "make experiment-05",
+  "started_at": "2026-06-08T08:59:19Z",
+  "ended_at": "2026-06-08T08:59:46Z",
+  "duration_sec": 27,
+  "exit_code": 0,
+  "git_commit": "53b5bf0",
+  "log": "output.log"
+}

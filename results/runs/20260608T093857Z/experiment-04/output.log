@@ -1,0 +1,62 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-04-failover-rto.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 04: 故障切换 RTO 测试                         ║
+║     场景 A: docker stop   |   场景 B: iptables 分区          ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== 场景 A: docker stop 故障切换 ===
+
+  Step A1: 启动延迟集群
+ Container yb-compose-yb-2-1 Running 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-rfNready-1 Started 
+[32m  集群就绪[0m
+
+  Step A2: 准备测试表
+CREATE TABLE
+  Pre-stop 节点数: 5
+
+  Step A3: 停止 yb-4 (docker stop)
+  yb-4 已停止, 开始探测恢复...
+  恢复于 1s, RTO = 481ms (剩余 5 节点健康)
+[32m  ✓ 场景 A: RTO = 481ms[0m
+
+  Step A4: RPO 验证 — 尝试写入
+[32m    写入成功 (id=1
+INSERT 0 1), RPO=0 ✓[0m
+
+=== 场景 B: iptables 网络分区 ===
+
+  Step B1: 确保集群就绪
+  当前节点数: 5
+
+  Step B2: 隔离 yb-4 (iptables DROP)
+  分区生效 (iptables 配置耗时: 6457ms)
+  探测写入恢复...
+  写入恢复于 1×0.5s, RTO(total)=6936ms, RTO(net)=478ms
+[32m  ✓ 场景 B: RTO(total)=6936ms, RTO(net)=478ms[0m
+
+  Step B3: 恢复网络分区
+  恢复后节点数: 5
+
+╔══════════════════════════════════════════════════════════════╗
+║               EXPERIMENT 04 SUMMARY                         ║
+╠══════════════════════════════════════════════════════════════╣
+║  场景                         │ RTO                       ║
+╠══════════════════════════════════════════════════════════════╣
+║  docker stop (进程崩溃)     │ 481ms                     ║
+║  iptables 分区 (total)        │ 6936ms                    ║
+║  iptables 分区 (net)          │ 478ms                     ║
+╠══════════════════════════════════════════════════════════════╣
+║  RPO (两种场景)             │ 0 (Raft 保证)           ║
+╚══════════════════════════════════════════════════════════════╝
+
+  分析:
+  - docker stop: 进程立即终止, YB-Master 快速检测并触发 leader 选举
+  - iptables 分区: 依赖心跳超时 (默认 500ms), 检测延迟 + 选举延迟
+  - RPO=0 由 Raft 日志持久化保证，已提交的事务不会丢失
+
+[32mExperiment 04 完成.[0m
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

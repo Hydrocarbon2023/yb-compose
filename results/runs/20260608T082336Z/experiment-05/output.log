@@ -1,0 +1,67 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-05-wan-simulation.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 05: WAN 模拟                                  ║
+║     Jitter + 丢包 + 带宽限制                                 ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 启动延迟集群 ===
+ Container yb-compose-yb-2-1 Running 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-rfNready-1 Started 
+  配置标准延迟 (30/60/90/120/150ms)...
+    yb-1: 30ms ✓
+    yb-2: 60ms ✓
+    yb-3: 90ms ✓
+    yb-4: 120ms ✓
+    yb-5: 150ms ✓
+[32m  标准延迟集群就绪[0m
+
+CREATE TABLE
+[32m  压测客户端就绪[0m
+
+=== 场景 1: 标准延迟 (对照) ===
+
+  region1 (30ms):  READ avg=127ms P99=165ms  WRITE avg=133ms P99=153ms
+  region3 (90ms):  READ avg=191ms P99=290ms  WRITE avg=183ms P99=199ms
+
+=== 场景 2: Jitter + 丢包 ===
+
+  yb-2: 60ms base + 20ms jitter + 2% loss
+  yb-3: 90ms base + 30ms jitter + 5% loss
+
+  延迟配置验证:
+    yb-2: qdisc netem 8101: root refcnt 33 limit 1000 delay 60ms  20ms loss 2%
+    yb-3: qdisc netem 80fe: root refcnt 33 limit 1000 delay 90ms  30ms loss 5%
+
+  region2 (jitter+loss): READ avg=160ms P99=197ms  WRITE avg=266ms P99=1229ms
+  region3 (jitter+loss): READ avg=297ms P99=1216ms  WRITE avg=398ms P99=1273ms
+
+=== 场景 3: 带宽限制 ===
+
+  yb-4: 120ms + 10mbit 带宽限制
+
+  region4 (10mbit): READ avg=225ms P99=319ms  WRITE avg=219ms P99=236ms
+
+
+╔══════════════════════════════════════════════════════════════════════════════════════╗
+║                        EXPERIMENT 05 SUMMARY — WAN 模拟                              ║
+╠══════════════════════════════════════════════════════════════════════════════════════╣
+║  场景                   │  读 avg │  读 P50 │  读 P99 │  写 avg │  写 P50 │  写 P99 ║
+╠══════════════════════════════════════════════════════════════════════════════════════╣
+║  region1 标准 (30ms)    │      127 │      133 │      165 │      133 │      136 │      153 ║
+║  region3 标准 (90ms)    │      191 │      186 │      290 │      183 │      185 │      199 ║
+║  region2 (jitter+2%loss)  │      160 │      163 │      197 │      266 │      165 │     1229 ║
+║  region3 (jitter+5%loss)  │      297 │      201 │     1216 │      398 │      197 │     1273 ║
+║  region4 (120ms+10mbit)   │      225 │      227 │      319 │      219 │      225 │      236 ║
+╚══════════════════════════════════════════════════════════════════════════════════════╝
+
+  关键发现:
+  1. Jitter 增加 P99 波动 (最高可达标准延迟的 4-6×)
+  2. 丢包导致 TCP 重传, P99 大幅上升
+  3. 10mbit 带宽对小查询 (256B) 影响极小 — 瓶颈在延迟而非带宽
+  4. 丢包率从 2% 上升到 5% 时 P99 呈非线性增长
+
+[32mExperiment 05 完成.[0m
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

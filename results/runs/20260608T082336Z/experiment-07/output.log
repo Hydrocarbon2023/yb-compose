@@ -1,0 +1,136 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-07-dynamic-partition.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 07: 动态分区压测                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 启动延迟集群 ===
+ Container yb-compose-yb-1-1 Running 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-rfNready-1 Started 
+
+=== Step 2: 准备 partition_test 表 ===
+CREATE TABLE
+INSERT 0 100
+[32m  表就绪[0m
+
+=== Step 3: 启动后台持续写入 (background) ===
+  PID=2964778
+  [bg-write]  #1 OK
+  [bg-write]  #2 OK
+  [bg-write]  #3 OK
+
+╔══════════════════════════════════════════════════════════════╗
+║  Phase 1: 正常读 (基线, 5 nodes)                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+  read #1: 272ms  val=1
+  [bg-write]  #4 OK
+  read #2: 254ms  val=0
+  [bg-write]  #5 OK
+  read #3: 246ms  val=0
+  [bg-write]  #6 OK
+  read #4: 219ms  val=1
+  [bg-write]  #7 OK
+  read #5: 199ms  val=0
+  [bg-write]  #8 OK
+  [bg-write]  #9 OK
+  read #6: 245ms  val=1
+  [bg-write]  #10 OK
+  read #7: 281ms  val=1
+  [bg-write]  #11 OK
+  read #8: 272ms  val=1
+  [bg-write]  #12 OK
+  read #9: 265ms  val=1
+  [bg-write]  #13 OK
+  read #10: 197ms  val=0
+  [bg-write]  #14 OK
+
+╔══════════════════════════════════════════════════════════════╗
+║  Phase 2: 隔离 region2 (网络分区)                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+  [bg-write]  #15 OK
+  [bg-write]  #16 OK
+  [bg-write]  #17 OK
+  [bg-write]  #18 OK
+  [bg-write]  #19 OK
+  [bg-write]  #20 OK
+  分区已注入 (t=16:32:55)
+
+  read #1: 13791ms val=0
+  [bg-write]  #21 OK
+  read #2: 169ms val=1
+  [bg-write]  #22 OK
+  [bg-write]  #23 OK
+  read #3: 145ms val=0
+  [bg-write]  #24 OK
+  read #4: 90ms val=0
+  [bg-write]  #25 OK
+  read #5: 164ms val=0
+  [bg-write]  #26 OK
+  read #6: 178ms val=1
+  [bg-write]  #27 OK
+  read #7: 152ms val=1
+  [bg-write]  #28 OK
+  read #8: 123ms val=1
+  [bg-write]  #29 OK
+  read #9: 147ms val=0
+  [bg-write]  #30 OK
+  read #10: 143ms val=0
+  [bg-write]  #31 OK
+  read #11: 150ms val=1
+  [bg-write]  #32 OK
+  [bg-write]  #33 OK
+  read #12: 139ms val=1
+  [bg-write]  #34 OK
+  read #13: 139ms val=1
+  [bg-write]  #35 OK
+  read #14: 135ms val=1
+  [bg-write]  #36 OK
+  read #15: 138ms val=1
+  [bg-write]  #37 OK
+
+╔══════════════════════════════════════════════════════════════╗
+║  Phase 3: 恢复 region2                                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+  [bg-write]  #38 OK
+  [bg-write]  #39 OK
+  [bg-write]  #40 OK
+  分区恢复
+
+  read #1: 245ms val=0 (恢复后)
+  [bg-write]  #41 OK
+  read #2: 214ms val=0 (恢复后)
+  [bg-write]  #42 OK
+  read #3: 285ms val=1 (恢复后)
+  [bg-write]  #43 OK
+  [bg-write]  #44 OK
+  read #4: 297ms val=1 (恢复后)
+  [bg-write]  #45 OK
+  read #5: 289ms val=0 (恢复后)
+  [bg-write]  #46 OK
+
+
+╔══════════════════════════════════════════════════════════════╗
+║               EXPERIMENT 07 SUMMARY                         ║
+╠══════════════════════════════════════════════════════════════╣
+║  Phase                          │ Observation               ║
+╠══════════════════════════════════════════════════════════════╣
+║  Phase 1 (Normal)               │ 读写正常              ║
+║  Phase 2 (Partitioned)          │ 0 fails / 15 ok           ║
+║  Phase 3 (Recovered)            │ 立即恢复              ║
+║  Background Writes              │ 0 fail / 46 ok            ║
+║  Total Writes                   │ 146                       ║
+╚══════════════════════════════════════════════════════════════╝
+
+  关键发现:
+  1. 隔离窗口内写入可能短暂失败，取决于 tablet leader 和客户端路径
+  2. 健康节点上的读取大多仍可成功，首次故障路径可能出现长尾延迟
+  3. 分区恢复后集群立即重新收敛
+  4. RPO = 0 (已提交事务不受分区影响)
+
+[32mExperiment 07 完成.[0m
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

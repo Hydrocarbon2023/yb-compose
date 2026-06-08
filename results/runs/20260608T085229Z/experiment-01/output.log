@@ -1,0 +1,130 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-01-setup-and-architecture.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 01: 环境搭建与架构分析                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 启动基准集群 (5 节点, 无延迟) ===
+ Container yb-compose-yb-5-1 Running 
+ Container yb-compose-yb-3-1 Running 
+ Container yb-compose-yb-1-1 Running 
+ Container yb-compose-yb-4-1 Running 
+ Container yb-compose-rfNready-1 Running 
+  等待集群就绪...
+[32m  集群已启动[0m
+
+=== Step 2: 验证集群拓扑 ===
+
+  节点列表:
+4a91e6deb2c8|cloud|region4|zone|primary
+7fb463b9b10c|cloud|region2|zone|primary
+85711db3eac9|cloud|region3|zone|primary
+97f087086698|cloud|region5|zone|primary
+cdc9bbb2c374|cloud|region1|zone|primary
+
+  节点总数: 5
+[32m  ✓ 集群拓扑验证通过 (5 节点)[0m
+
+=== Step 3: HLC 时钟同步验证 ===
+
+CREATE TABLE
+  各节点 now() 时间戳与 HLC 值:
+     host     |            pg_time            |      hlc_value      
+--------------+-------------------------------+---------------------
+ 4a91e6deb2c8 | 2026-06-08 08:52:31.291764+00 | 7294602245333540864
+ 7fb463b9b10c | 2026-06-08 08:52:31.291764+00 | 7294602245333598208
+ 85711db3eac9 | 2026-06-08 08:52:31.291764+00 | 7294602245333606400
+ 97f087086698 | 2026-06-08 08:52:31.291764+00 | 7294602245333610496
+ cdc9bbb2c374 | 2026-06-08 08:52:31.291764+00 | 7294602245333614592
+(5 rows)
+
+
+  时钟漂移: 0.000000ms
+[32m  ✓ HLC 时钟同步正常 (<100ms 漂移)[0m
+
+=== Step 4: Raft 共识拓扑 ===
+
+  All nodes (yb_servers):
+     host     | cloud | region  | zone | node_type 
+--------------+-------+---------+------+-----------
+ 4a91e6deb2c8 | cloud | region4 | zone | primary
+ 7fb463b9b10c | cloud | region2 | zone | primary
+ 85711db3eac9 | cloud | region3 | zone | primary
+ 97f087086698 | cloud | region5 | zone | primary
+ cdc9bbb2c374 | cloud | region1 | zone | primary
+(5 rows)
+
+
+  YB-Master 集群 (yb-admin):
+    Master UUID                      	RPC Host/Port        	State    	Role 	Broadcast Host/Port 
+    00a1bc514d20439e856bd737c7ca6a53 	cdc9bbb2c374:7100    	ALIVE    	LEADER 	cdc9bbb2c374:7100   
+    500f7c6723d54eb5a7191daf2745356c 	7fb463b9b10c:7100    	ALIVE    	FOLLOWER 	7fb463b9b10c:7100   
+    fc7c8a8b469643b2a654d071fe586696 	85711db3eac9:7100    	ALIVE    	FOLLOWER 	85711db3eac9:7100   
+
+  Master Leader: cdc9bbb2c374:7100
+  Master daemons (alive): 3
+  TServer daemons (alive): 5
+
+=== Step 5: Geo-Partitioning 表空间 ===
+
+  创建 region1-5 表空间...
+CREATE TABLESPACE
+    region1: ✓ (新建)
+CREATE TABLESPACE
+    region2: ✓ (新建)
+CREATE TABLESPACE
+    region3: ✓ (新建)
+CREATE TABLESPACE
+    region4: ✓ (新建)
+CREATE TABLESPACE
+    region5: ✓ (新建)
+
+  已创建的表空间:
+ spcname 
+---------
+ region1
+ region2
+ region3
+ region4
+ region5
+(5 rows)
+
+[32m  ✓ Geo-Partitioning 表空间创建完成[0m
+
+=== Step 6: 节点连通性检查 ===
+
+[32m    yb-1: ✓ 可连接[0m
+[32m    yb-2: ✓ 可连接[0m
+[32m    yb-3: ✓ 可连接[0m
+[32m    yb-4: ✓ 可连接[0m
+[32m    yb-5: ✓ 可连接[0m
+
+=== Step 7: 集群配置信息 ===
+
+  复制因子 (Replication Factor):
+ replication_factor 
+--------------------
+(0 rows)
+
+
+  YugabyteDB 版本:
+PostgreSQL 15.12-YB-2025.2.3.2-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+
+
+╔══════════════════════════════════════════════════════════════╗
+║               EXPERIMENT 01 SUMMARY                         ║
+╠══════════════════════════════════════════════════════════════╣
+║  检查项                      │ 结果                     ║
+╠══════════════════════════════════════════════════════════════╣
+║  集群节点数                │ ✓ 5 节点 RF=3          ║
+║  节点连通性                │ ✓ 全部可连接        ║
+║  HLC 时钟同步               │ ✓ 正常运行           ║
+║  Master 节点                  │ ✓ 3 个                  ║
+║  TServer 节点                 │ ✓ 5 个                  ║
+║  Master Leader                  │ ✓ cdc9bbb2c374:7100      ║
+║  Geo-Partitioning               │ ✓ region1-5 表空间    ║
+╚══════════════════════════════════════════════════════════════╝
+
+[32mExperiment 01 完成.[0m
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

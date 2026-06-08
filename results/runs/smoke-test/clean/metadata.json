@@ -1,0 +1,11 @@
+{
+  "run_id": "smoke-test",
+  "target": "clean",
+  "command": "make clean",
+  "started_at": "2026-06-08T08:09:40Z",
+  "ended_at": "2026-06-08T08:09:40Z",
+  "duration_sec": 0,
+  "exit_code": 0,
+  "git_commit": "53b5bf0",
+  "log": "output.log"
+}

@@ -1,0 +1,84 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+bash scripts/experiment-06-asymmetric-delay.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 06: Asymmetric Delay                         ║
+║     非均匀延迟: 10 / 25 / 50 / 75 / 100ms                  ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 启动集群 + 非均匀延迟注入 ===
+ Container yb-compose-yb-5-1 Running 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-rfNready-1 Started 
+  注入非均匀延迟 (10/25/50/75/100ms)...
+
+  延迟配置验证:
+    yb-1   : 10ms
+    yb-2   : 25ms
+    yb-3   : 50ms
+    yb-4   : 75ms
+    yb-5   : 100ms
+
+=== Step 2: Master Leader 分布 ===
+
+  YB-Master 集群信息:
+     host     | node_type | cloud | region  | zone 
+--------------+-----------+-------+---------+------
+ 45d1892707b3 | primary   | cloud | region4 | zone
+ 71cf8553b269 | primary   | cloud | region2 | zone
+ 78c195c7a2cf | primary   | cloud | region1 | zone
+ 91531acd5563 | primary   | cloud | region5 | zone
+ bf891fc8b101 | primary   | cloud | region3 | zone
+(5 rows)
+
+
+  Master Leader 所在 region: 78c195c7a2cf:7100
+
+=== Step 3: Tablet Leader 分布 ===
+
+CREATE TABLE
+INSERT 0 100
+  Table ID: 000034e1000030008000000000004013
+
+  Tablet 分布:
+Tablet-UUID                      	Range                                                    	Leader-IP       	Leader-UUID
+81a297c39265437e98c7fe44ae940c31 	hash_split: [0x0000, 0xFFFF]                             	78c195c7a2cf:9100 	898d15e9c7cc4c75a98a79bc6a0eb76c
+
+=== Step 4: 延迟最低节点读性能测试 ===
+
+  测试 yb-1 (最低延迟 10ms) vs yb-5 (最高延迟 100ms) 读取延迟:
+  yb-1 (10ms egress):
+    读 #1: 105ms
+    读 #2: 141ms
+    读 #3: 178ms
+    读 #4: 182ms
+    读 #5: 129ms
+
+  yb-5 (100ms egress):
+    读 #1: 8692ms
+    读 #2: 6410ms
+    读 #3: 10951ms
+    读 #4: 12800ms
+    读 #5: 6515ms
+
+=== Step 5: Master Leader 放置分析 ===
+
+  分析: Raft leader 不会仅因当前延迟变化而自动迁移到最低延迟节点
+  - 当前 Master Leader: 78c195c7a2cf:7100
+  - region1 延迟: 10ms (最低)
+  - region5 延迟: 100ms (最高)
+[33m  ⚠ Leader 位置由历史选举和运行状态决定；优化放置需 Leader Preference 或显式重平衡[0m
+
+╔══════════════════════════════════════════════════════════════╗
+║               EXPERIMENT 06 SUMMARY                         ║
+╠══════════════════════════════════════════════════════════════╣
+║  检查项                      │ 结果                    ║
+╠══════════════════════════════════════════════════════════════╣
+║  延迟分布                   │ 10/25/50/75/100ms         ║
+║  Master Leader                  │ 78c195c7a2cf:7100 ⚠     ║
+║  Tablet Leader                  │ 需 Leader Preference     ║
+║  延迟线性关系             │ 读延迟 ∝ egress      ║
+╚══════════════════════════════════════════════════════════════╝
+
+[32mExperiment 06 完成.[0m
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”

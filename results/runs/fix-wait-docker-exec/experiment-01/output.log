@@ -1,0 +1,123 @@
+bash scripts/experiment-01-setup-and-architecture.sh
+
+╔══════════════════════════════════════════════════════════════╗
+║     Experiment 01: 环境搭建与架构分析                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Step 1: 启动基准集群 (5 节点, 无延迟) ===
+ Container yb-compose-yb-2-1 Running 
+ Container yb-compose-yb-1-1 Running 
+ Container yb-compose-ui-7000-1 Running 
+ Container yb-compose-rfNready-1 Starting 
+ Container yb-compose-rfNready-1 Started 
+  等待集群就绪...
+[32m  集群已启动[0m
+
+=== Step 2: 验证集群拓扑 ===
+
+  节点列表:
+36e8a4c3553d|cloud|region3|zone|primary
+4c7d874e82c6|cloud|region5|zone|primary
+5d13327458d6|cloud|region4|zone|primary
+a6c9c83e1029|cloud|region2|zone|primary
+aa16b92c7f7c|cloud|region1|zone|primary
+
+  节点总数: 5
+[32m  ✓ 集群拓扑验证通过 (5 节点)[0m
+
+=== Step 3: HLC 时钟同步验证 ===
+
+CREATE TABLE
+  各节点 now() 时间戳与 HLC 值:
+     host     |            pg_time            |      hlc_value      
+--------------+-------------------------------+---------------------
+ 36e8a4c3553d | 2026-06-08 08:22:29.203155+00 | 7294594864047271936
+ 4c7d874e82c6 | 2026-06-08 08:22:29.203155+00 | 7294594864047304704
+ 5d13327458d6 | 2026-06-08 08:22:29.203155+00 | 7294594864047308800
+ a6c9c83e1029 | 2026-06-08 08:22:29.203155+00 | 7294594864047308800
+ aa16b92c7f7c | 2026-06-08 08:22:29.203155+00 | 7294594864047312896
+(5 rows)
+
+
+  时钟漂移: 0.000000ms
+[32m  ✓ HLC 时钟同步正常 (<100ms 漂移)[0m
+
+=== Step 4: Raft 共识拓扑 ===
+
+  All nodes (yb_servers):
+     host     | cloud | region  | zone | node_type 
+--------------+-------+---------+------+-----------
+ 36e8a4c3553d | cloud | region3 | zone | primary
+ 4c7d874e82c6 | cloud | region5 | zone | primary
+ 5d13327458d6 | cloud | region4 | zone | primary
+ a6c9c83e1029 | cloud | region2 | zone | primary
+ aa16b92c7f7c | cloud | region1 | zone | primary
+(5 rows)
+
+
+  YB-Master 集群 (yb-admin):
+    Master UUID                      	RPC Host/Port        	State    	Role 	Broadcast Host/Port 
+    14607b89d1ae4ec59753ba0d50bb2325 	aa16b92c7f7c:7100    	ALIVE    	LEADER 	aa16b92c7f7c:7100   
+    fde58847a3ce4c61accb6c8c25391b93 	a6c9c83e1029:7100    	ALIVE    	FOLLOWER 	a6c9c83e1029:7100   
+    9e6aa55eb63046d2929d9373dccd56cd 	36e8a4c3553d:7100    	ALIVE    	FOLLOWER 	36e8a4c3553d:7100   
+
+  Master Leader: aa16b92c7f7c:7100
+  Master daemons (alive): 3
+  TServer daemons (alive): 5
+
+=== Step 5: Geo-Partitioning 表空间 ===
+
+  创建 region1-5 表空间...
+    region1: ✓ (可能已存在)
+    region2: ✓ (可能已存在)
+    region3: ✓ (可能已存在)
+    region4: ✓ (可能已存在)
+    region5: ✓ (可能已存在)
+
+  已创建的表空间:
+ spcname 
+---------
+ region1
+ region2
+ region3
+ region4
+ region5
+(5 rows)
+
+[32m  ✓ Geo-Partitioning 表空间创建完成[0m
+
+=== Step 6: 节点连通性检查 ===
+
+[32m    yb-1: ✓ 可连接[0m
+[32m    yb-2: ✓ 可连接[0m
+[32m    yb-3: ✓ 可连接[0m
+[32m    yb-4: ✓ 可连接[0m
+[32m    yb-5: ✓ 可连接[0m
+
+=== Step 7: 集群配置信息 ===
+
+  复制因子 (Replication Factor):
+ replication_factor 
+--------------------
+(0 rows)
+
+
+  YugabyteDB 版本:
+PostgreSQL 15.12-YB-2025.2.3.2-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+
+
+╔══════════════════════════════════════════════════════════════╗
+║               EXPERIMENT 01 SUMMARY                         ║
+╠══════════════════════════════════════════════════════════════╣
+║  检查项                      │ 结果                     ║
+╠══════════════════════════════════════════════════════════════╣
+║  集群节点数                │ ✓ 5 节点 RF=3          ║
+║  节点连通性                │ ✓ 全部可连接        ║
+║  HLC 时钟同步               │ ✓ 正常运行           ║
+║  Master 节点                  │ ✓ 3 个                  ║
+║  TServer 节点                 │ ✓ 5 个                  ║
+║  Master Leader                  │ ✓ aa16b92c7f7c:7100      ║
+║  Geo-Partitioning               │ ✓ region1-5 表空间    ║
+╚══════════════════════════════════════════════════════════════╝
+
+[32mExperiment 01 完成.[0m

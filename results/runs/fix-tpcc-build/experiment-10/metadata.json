@@ -1,0 +1,11 @@
+{
+  "run_id": "fix-tpcc-build",
+  "target": "experiment-10",
+  "command": "make experiment-10",
+  "started_at": "2026-06-08T09:14:28Z",
+  "ended_at": "2026-06-08T09:20:23Z",
+  "duration_sec": 355,
+  "exit_code": 0,
+  "git_commit": "53b5bf0",
+  "log": "output.log"
+}

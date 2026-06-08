@@ -1,0 +1,11 @@
+{
+  "run_id": "fix-wait-docker-exec",
+  "target": "experiment-01",
+  "command": "make experiment-01",
+  "started_at": "2026-06-08T08:22:28Z",
+  "ended_at": "2026-06-08T08:22:31Z",
+  "duration_sec": 3,
+  "exit_code": 0,
+  "git_commit": "53b5bf0",
+  "log": "output.log"
+}

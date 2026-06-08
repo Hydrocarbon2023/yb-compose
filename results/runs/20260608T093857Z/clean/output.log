@@ -1,0 +1,5 @@
+make[1]: 进入目录“/home/wangshuo/code/yb-compose”
+docker compose -p yb-compose -f compose/base.yaml down -v --remove-orphans 2>/dev/null || true
+docker network rm yb-compose_default 2>/dev/null || true
+docker rm -f yb-latency-client- yb-latency-persist- 2>/dev/null || true
+make[1]: 离开目录“/home/wangshuo/code/yb-compose”
