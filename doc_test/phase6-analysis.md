@@ -35,7 +35,7 @@
 
 **关键发现**: Master Leader 在 **region2 (25ms)**，而非延迟最低的 **region1 (10ms)**。
 
-> **与 README 预期的差异**: README 中实验 6 的预期输出为"Master leader → region1 (10ms, 最低延迟节点) ✅ 自动选择"，但实测结果与此不符——Raft 并不自动选择最低延迟节点作为 leader。README 需要更新以反映实际行为。
+> **文档同步**: README 已更新为"leader 不会因为当前延迟最低而自动迁移"。Master leader 的具体位置会随历史选举和启动状态变化，关键结论是不保证自动选择最低延迟节点。
 
 ### 2.2 Tablet Leader 分布
 

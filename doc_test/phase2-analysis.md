@@ -15,7 +15,7 @@
 ### 1.2 测试方法
 
 - 创建 `perf_test` 表（BIGSERIAL PK + TEXT + TIMESTAMPTZ），预填充 10,000 行
-- 使用 `02-latency-bench.py` 从临时 Alpine 容器对每个节点执行 30 次读写操作
+- 使用 `experiment-02-baseline-latency.sh` 从临时 `postgres:16` 客户端容器对每个节点执行读写操作
 - 测量 avg / P50 / P99 延迟
 - 一致性验证：`yb_read_from_followers` 开关效果 + 并发转账正确性
 

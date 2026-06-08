@@ -70,7 +70,7 @@ egress(ms)  读 avg(ms)  基线差(ms)
 - **斜率 0.86**：接近 1.0，说明 egress 延迟几乎 1:1 传递到读延迟
 - **截距 70ms**：包含 Docker 网络栈开销 + psql 连接建立 + YugabyteDB SQL 处理
 
-> **与 README 公式的差异**: README 给出的回归公式为 `latency ≈ 0.83 × egress + 80ms`，而实测为 `0.86 × egress + 70ms`。差异可能来源于：(1) 基准延迟不同（README 假设 ~49ms，实测 ~65ms），(2) 测试数据量和表结构差异对 SQL 处理时间的影响。README 的公式应更新为实测值。
+> **文档同步**: README 已更新为实测回归公式 `latency ≈ 0.86 × egress + 70ms`。短参数 smoke test 会因样本数较少而有更大波动，正式结果以本报告的完整迭代数据为准。
 
 ### 3.2 与基准环境对比
 

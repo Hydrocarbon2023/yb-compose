@@ -137,7 +137,7 @@ yb-5 时钟回退 1000ms 后，`now()` 反映旧时间，但 `yb_get_current_hyb
 | 实验 | 内容 | 本实验的扩展 |
 |------|------|-------------|
 | `01-hlc-clock.sql` | 静态观测 now() 差异 | 主动操纵时钟，验证 HLC 单调性 |
-| `04-failover-test.sh` | 进程级故障切换 | 网络分区 + 时钟异常的组合故障 |
-| `chaos-bench.sh` | 分区下压测 | 分区下 HLC 行为观测 |
+| `experiment-04-failover-rto.sh` | 进程级和网络分区故障切换 | 网络分区 + 时钟异常的组合故障 |
+| `experiment-07-dynamic-partition.sh` | 分区下动态压测 | 分区下 HLC 行为观测 |
 
 本实验填补了"时钟异常"这一维度的测试空白，是混沌工程实验的重要补充。

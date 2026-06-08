@@ -10,7 +10,7 @@ services:
        delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
        if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
          dnf -y install iproute-tc >/dev/null 2>&1
-         tc qdisc add dev eth0 root netem delay $$delay_ms 2>/dev/null || true
+         tc qdisc replace dev eth0 root netem delay $${delay_ms}ms 2>/dev/null || true
        fi
        tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
       '
@@ -45,7 +45,7 @@ services:
         delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
         if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
           dnf -y install iproute-tc >/dev/null 2>&1
-          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+          tc qdisc replace dev eth0 root netem delay $${delay_ms}ms 2>/dev/null || true
         fi
         tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
        '
@@ -66,7 +66,7 @@ services:
         delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
         if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
           dnf -y install iproute-tc >/dev/null 2>&1
-          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+          tc qdisc replace dev eth0 root netem delay $${delay_ms}ms 2>/dev/null || true
         fi
         tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
        '
@@ -87,7 +87,7 @@ services:
         delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
         if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
           dnf -y install iproute-tc >/dev/null 2>&1
-          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+          tc qdisc replace dev eth0 root netem delay $${delay_ms}ms 2>/dev/null || true
         fi
         tail -F /root/var/logs/tserver/postgresql*log 2>/dev/null || sleep infinity
        '
@@ -108,7 +108,7 @@ services:
         delay_ms=$$(( ${NET_DELAY_MS:-0} * N ))
         if [ "$$delay_ms" -gt 0 ] 2>/dev/null; then
           dnf -y install iproute-tc >/dev/null 2>&1
-          tc qdisc add dev eth0 root netem delay ${delay_ms}ms 2>/dev/null || true
+          tc qdisc replace dev eth0 root netem delay $${delay_ms}ms 2>/dev/null || true
         fi
         # Background: wait for all nodes then configure data_placement
         (

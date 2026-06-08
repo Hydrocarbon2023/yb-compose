@@ -367,9 +367,6 @@ cmd_delay_set() {
   local name
   name=$(resolve_node_name "$node")
 
-  # 清除旧的 qdisc
-  yb_exec "$node" "tc qdisc del dev eth0 root 2>/dev/null" || true
-
   if [ -n "$rate" ]; then
     # 链式 qdisc: netem (延迟/jitter/丢包) → tbf (带宽限制)
     local netem_args="delay ${delay_ms}ms"
@@ -377,7 +374,7 @@ cmd_delay_set() {
     [ -n "$loss" ]   && netem_args="$netem_args loss ${loss}%"
 
     echo ">>> Setting delay+rate on $name [$node]: $netem_args rate $rate"
-    yb_exec "$node" "tc qdisc add dev eth0 root handle 1: netem $netem_args"
+    yb_exec "$node" "tc qdisc replace dev eth0 root handle 1: netem $netem_args"
     yb_exec "$node" "tc qdisc add dev eth0 parent 1:1 handle 10: tbf rate $rate burst 32kbit latency 50ms"
     save_state "$node" "DELAY $netem_args RATE $rate"
   else
@@ -387,7 +384,7 @@ cmd_delay_set() {
     [ -n "$loss" ]   && netem_args="$netem_args loss ${loss}%"
 
     echo ">>> Setting delay on $name [$node]: $netem_args"
-    yb_exec "$node" "tc qdisc add dev eth0 root netem $netem_args"
+    yb_exec "$node" "tc qdisc replace dev eth0 root netem $netem_args"
     save_state "$node" "DELAY $netem_args"
   fi
   echo "  done"

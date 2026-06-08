@@ -14,13 +14,14 @@
 TPCC_WAREHOUSES ?= 10
 TPCC_THREADS ?= 8
 TPCC_DURATION ?= 5m
+LATENCY_ITER ?= 50
 
-.PHONY: up up-delay status psql bench clean fix-delay
-.PHONY: experiment-all experiment-phase1 experiment-phase2 experiment-phase3 experiment-phase4 experiment-phase5 experiment-phase6
+.PHONY: up up-delay status psql clean fix-delay
+.PHONY: experiment-all experiment-01 experiment-02 experiment-03 experiment-04 experiment-05 experiment-06 experiment-07 experiment-08 experiment-09 experiment-10 experiment-11
 .PHONY: chaos-build chaos chaos-status chaos-partition chaos-heal chaos-delay chaos-scenario
-.PHONY: build-bench build-tpcc experiment-tpcc experiment-scalability
+.PHONY: build-bench build-tpcc
 
-COMPOSE = docker compose -f compose/base.yaml
+COMPOSE = docker compose -p yb-compose -f compose/base.yaml
 
 # ============================================================================
 # 集群管理
@@ -28,12 +29,12 @@ COMPOSE = docker compose -f compose/base.yaml
 
 up:
 	$(COMPOSE) up -d yb-1 yb-2 yb-3 yb-4 yb-5 ui-7000 ui-15433 rfNready
-	$(COMPOSE) wait rfNready
+	@timeout 240s bash -c 'until $(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -tAc "SELECT count(*) FROM yb_servers();" 2>/dev/null | grep -q "^5$$"; do sleep 3; done'
 	$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -c "SELECT host, cloud, region, zone FROM yb_servers() ORDER BY host;"
 
 up-delay:
 	$(COMPOSE) --env-file=.env.delay up -d yb-1 yb-2 yb-3 yb-4 yb-5 ui-7000 ui-15433 rfNready
-	$(COMPOSE) wait rfNready
+	@timeout 240s bash -c 'until $(COMPOSE) --env-file=.env.delay exec -T yb-1 ysqlsh -h yb-1 -tAc "SELECT count(*) FROM yb_servers();" 2>/dev/null | grep -q "^5$$"; do sleep 3; done'
 	$(MAKE) fix-delay
 
 # 修复/重设延迟注入（容器启动后安装 iproute-tc + 配 tc netem）
@@ -44,8 +45,7 @@ fix-delay:
 		d=$$(echo $$pair | cut -d' ' -f2); \
 		$(COMPOSE) exec -T $$n bash -c '\
 			command -v tc &>/dev/null || dnf install -y -q iproute-tc &>/dev/null; \
-			tc qdisc del dev eth0 root 2>/dev/null; \
-			tc qdisc add dev eth0 root netem delay '$${d}'ms \
+			tc qdisc replace dev eth0 root netem delay '$${d}'ms \
 		' 2>/dev/null && echo "  $$n: $${d}ms OK" || echo "  $$n: FAILED"; \
 	done
 	@echo "=== 延迟验证 ==="
@@ -63,7 +63,8 @@ psql:
 	$(COMPOSE) exec -it yb-1 ysqlsh -h yb-1
 
 clean:
-	$(COMPOSE) down -v 2>/dev/null || true
+	$(COMPOSE) down -v --remove-orphans 2>/dev/null || true
+	docker network rm yb-compose_default 2>/dev/null || true
 	docker rm -f yb-latency-client- yb-latency-persist- 2>/dev/null || true
 
 # ============================================================================
@@ -72,171 +73,59 @@ clean:
 
 experiment-all: chaos-build
 	@echo "╔══════════════════════════════════════════════════╗"
-	@echo "║  YugabyteDB 分布式数据库 — 全自动实验复现        ║"
+	@echo "║  YugabyteDB 分布式数据库 — 11 项实验复现         ║"
 	@echo "╚══════════════════════════════════════════════════╝"
-	$(MAKE) experiment-phase1
-	$(MAKE) experiment-phase2
+	$(MAKE) experiment-01
+	$(MAKE) experiment-02
 	$(MAKE) clean
-	$(MAKE) experiment-phase3
-	$(MAKE) experiment-phase4
-	$(MAKE) experiment-phase5
-	$(MAKE) experiment-phase6
+	$(MAKE) experiment-03
+	$(MAKE) experiment-04
+	$(MAKE) experiment-05
+	$(MAKE) experiment-06
+	$(MAKE) experiment-07
+	$(MAKE) clean
+	$(MAKE) experiment-08
+	$(MAKE) clean
+	$(MAKE) experiment-09
+	$(MAKE) experiment-10
+	$(MAKE) experiment-11
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════╗"
 	@echo "║  全部实验完成                                    ║"
 	@echo "╚══════════════════════════════════════════════════╝"
 
-# Phase 1-2: 架构分析（基准环境，无延迟）
-experiment-phase1: up
-	@echo "\n══════ Phase 1-2: 架构分析 ══════\n"
-	$(MAKE) experiment-hlc
-	$(MAKE) experiment-tablespace
-	$(MAKE) experiment-raft
+experiment-01:
+	bash scripts/experiment-01-setup-and-architecture.sh
 
-experiment-hlc:
-	@echo ">>> HLC 时钟同步"
-	$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -f sql/01-hlc-clock.sql 2>/dev/null || true
+experiment-02:
+	bash scripts/experiment-02-baseline-latency.sh --iter $(LATENCY_ITER)
 
-experiment-tablespace:
-	@echo ">>> 创建 Geo-Partitioning 表空间"
-	@for i in 1 2 3 4 5; do \
-		$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -c "CREATE TABLESPACE region$$i WITH ( replica_placement = '{\"num_replicas\": 1, \"placement_blocks\": [{\"cloud\": \"cloud\", \"region\": \"region$$i\", \"zone\": \"zone\", \"min_num_replicas\": 1}]}' );" 2>/dev/null || true; \
-	done
-	$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -c "SELECT spcname FROM pg_tablespace WHERE spcname NOT IN ('pg_default', 'pg_global');"
+experiment-03:
+	bash scripts/experiment-03-delay-latency.sh --iter $(LATENCY_ITER)
 
-experiment-raft:
-	@echo ">>> Raft 共识拓扑"
-	$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -c "SELECT host, node_type, cloud, region FROM yb_servers() ORDER BY host;"
+experiment-04:
+	bash scripts/experiment-04-failover-rto.sh
 
-# Phase 3: 基准测试（基准环境，无延迟）
-experiment-phase2: up
-	@echo "\n══════ Phase 3: 基准测试 (无延迟) ══════\n"
-	$(MAKE) experiment-latency-baseline
+experiment-05:
+	bash scripts/experiment-05-wan-simulation.sh
 
-experiment-latency-baseline:
-	@echo ">>> 创建 perf_test 表"
-	bash scripts/01-setup-perf-test.sh
-	@echo ">>> 延迟基准测试 (基线环境)"
-	python3 scripts/02-latency-bench.py --iter 30
-	@echo ">>> 一致性验证"
-	bash scripts/03-consistency-test.sh
+experiment-06:
+	bash scripts/experiment-06-asymmetric-delay.sh
 
-# Phase 3-4: 延迟环境基准 + 故障切换
-experiment-phase3: up-delay
-	@echo "\n══════ Phase 3-4: 延迟基准 + 故障切换 ══════\n"
-	$(MAKE) experiment-latency-delay
-	$(MAKE) experiment-rtt
-	$(MAKE) experiment-failover-docker
-	$(MAKE) experiment-failover-iptables
+experiment-07:
+	bash scripts/experiment-07-dynamic-partition.sh
 
-experiment-latency-delay:
-	@echo ">>> 延迟基准测试 (30/60/90/120/150ms)"
-	bash scripts/01-setup-perf-test.sh
-	python3 scripts/02-latency-bench.py --iter 30
+experiment-08:
+	bash scripts/experiment-08-clock-skew.sh
 
-experiment-rtt:
-	@echo ">>> 跨节点 RTT 验证"
-	@for pair in "yb-1 yb-2" "yb-1 yb-3" "yb-2 yb-3" "yb-1 yb-5" "yb-4 yb-5"; do \
-		a=$$(echo $$pair | cut -d' ' -f1); b=$$(echo $$pair | cut -d' ' -f2); \
-		rtt=$$($(COMPOSE) exec -T $$a ping -c 3 -W 1 $$b 2>/dev/null | tail -1 | sed -nE 's/.* = [0-9.]+\/([0-9.]+)\/.*/\1/p' || echo "FAIL"); \
-		echo "  $$a ↔ $$b: $${rtt}ms"; \
-	done
+experiment-09:
+	bash scripts/experiment-09-flapping-node.sh
 
-experiment-failover-docker:
-	@echo ">>> 故障切换 RTO (docker stop)"
-	bash scripts/04-failover-test.sh yb-2 yb-1
+experiment-10:
+	bash scripts/experiment-10-tpcc-benchmark.sh $(TPCC_WAREHOUSES) $(TPCC_THREADS) $(TPCC_DURATION)
 
-experiment-failover-iptables:
-	@echo ">>> 故障切换 RTO (iptables isolate)"
-	@$(COMPOSE) exec -T yb-2 ysqlsh -h yb-2 -tAc "SELECT 1;" >/dev/null 2>&1
-	@FAILURE_TIME=$$(date +%s%N); \
-	make chaos CMD="partition isolate region1" >/dev/null 2>&1; \
-	PART_DONE=$$(date +%s%N); \
-	echo "  Isolation effective. Probing write recovery..."; \
-	for i in $$(seq 1 60); do \
-		if $(COMPOSE) exec -T yb-2 ysqlsh -h yb-2 -tAc "INSERT INTO failover_test DEFAULT VALUES RETURNING id;" 2>/dev/null | grep -qE '^[0-9]+'; then \
-			R=$$(date +%s%N); \
-			RTO_TOTAL=$$(echo "scale=2; ($$R - $$FAILURE_TIME) / 1000000" | bc); \
-			RTO_NET=$$(echo "scale=2; ($$R - $$PART_DONE) / 1000000" | bc); \
-			echo "  Write recovered after ~$$((i*500))ms, RTO(total)=$${RTO_TOTAL}ms, RTO(net)=$${RTO_NET}ms"; \
-			break; \
-		fi; \
-		sleep 0.5; \
-	done
-	$(MAKE) chaos-heal CMD="all"
-
-# Phase 5: 混沌工程实验
-experiment-phase4: up-delay
-	@echo "\n══════ Phase 5: 混沌工程 ══════\n"
-	$(MAKE) experiment-wan
-	$(MAKE) experiment-asymmetric
-	$(MAKE) experiment-partition-dynamic
-
-experiment-wan:
-	@echo ">>> WAN 模拟: Jitter+Loss"
-	$(MAKE) chaos-delay-set NODE="region2" ARGS="60 20 2"
-	$(MAKE) chaos-delay-set NODE="region3" ARGS="90 30 5"
-	bash scripts/01-setup-perf-test.sh 2>/dev/null
-	python3 scripts/02-latency-bench.py --iter 30
-	$(MAKE) fix-delay
-	@echo ">>> WAN 模拟: Bandwidth"
-	@$(COMPOSE) exec -T yb-4 bash -c 'tc qdisc del dev eth0 root 2>/dev/null; tc qdisc add dev eth0 root handle 1: netem delay 120ms; tc qdisc add dev eth0 parent 1:1 handle 10: tbf rate 10mbit burst 32kbit latency 50ms' 2>/dev/null
-	python3 scripts/02-latency-bench.py --iter 30
-	$(MAKE) fix-delay
-
-experiment-asymmetric:
-	@echo ">>> Asymmetric Delay"
-	$(MAKE) chaos-scenario CMD="asymmetric-delay"
-	sleep 3
-	@echo "  Tablet leader 分布:"
-	$(COMPOSE) exec -T yb-1 bash -c 'TABLE_ID=$$(yb-admin -master_addresses yb-1:7100 list_tables 2>/dev/null | grep -i perf_test | grep -oE "\[[0-9a-f]+\]" | tr -d "[]") && yb-admin -master_addresses yb-1:7100 list_tablets tableid.$$TABLE_ID 0 2>/dev/null' 2>&1 || echo "  (check manually)"
-	$(MAKE) fix-delay
-
-experiment-partition-dynamic:
-	@echo ">>> 动态分区压测"
-	bash scripts/07-chaos-bench.sh 2>&1 || true
-
-# Phase 5: 新增实验（基准环境下运行）
-experiment-phase5: up
-	@echo "\n══════ Phase 6-7: 新增实验 ══════\n"
-	bash scripts/01-setup-perf-test.sh
-	$(MAKE) experiment-clock-skew
-	$(MAKE) experiment-flapping
-
-experiment-clock-skew:
-	@echo ">>> 时钟偏移实验 (需要 SYS_TIME 权限)"
-	@echo "  Baseline time:"
-	@for n in yb-1 yb-2 yb-3 yb-4 yb-5; do printf "  %-5s: " $$n; $(COMPOSE) exec -T $$n date +"%T.%N" 2>/dev/null; done
-	@echo "  Fast-forward yb-5 +2s..."
-	@docker exec --privileged yb-compose-yb-5-1 bash -c 'date -s "$$(date -d "2 seconds" +"%T.%N")"' 2>/dev/null
-	@echo "  Checking cluster... (5s wait)"
-	@sleep 5
-	@$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -tAc "SELECT count(*) FROM yb_servers();" 2>/dev/null
-	@echo "  Clock rewind yb-5 -4s..."
-	@docker exec --privileged yb-compose-yb-5-1 bash -c 'date -s "$$(date -d "4 seconds ago" +"%T.%N")"' 2>/dev/null
-	@echo "  Waiting for HLC reaction (10s)..."
-	@sleep 10
-	@$(COMPOSE) exec -T yb-1 ysqlsh -h yb-1 -tAc "SELECT count(*) FROM yb_servers();" 2>/dev/null || echo "  (cluster may be recovering)"
-	$(MAKE) chaos-heal CMD="all"
-
-experiment-flapping:
-	@echo ">>> 震荡节点测试"
-	bash scripts/06-flapping-node-test.sh 2>&1 || true
-
-# Phase 6: TPC-C + 扩展性（基准环境 + bench 工具）
-experiment-phase6: up build-tpcc build-bench
-	@echo "\n══════ Phase 8-9: TPC-C 吞吐量 + 扩展性 ══════\n"
-	$(MAKE) experiment-tpcc
-	$(MAKE) experiment-scalability
-
-experiment-tpcc:
-	@echo ">>> TPC-C Benchmark (go-tpc)"
-	@echo "    Warehouses=$(TPCC_WAREHOUSES) Threads=$(TPCC_THREADS) Duration=$(TPCC_DURATION)"
-	bash scripts/08-tpcc-benchmark.sh $(TPCC_WAREHOUSES) $(TPCC_THREADS) $(TPCC_DURATION)
-
-experiment-scalability:
-	@echo ">>> 扩展性测试 (pgbench, 1/3/5 节点)"
-	bash scripts/09-scalability-test.sh
+experiment-11:
+	bash scripts/experiment-11-scalability.sh
 
 # ============================================================================
 # 压测工具构建
@@ -248,20 +137,11 @@ build-tpcc:
 build-bench:
 	$(COMPOSE) -f compose/bench.yaml build pg
 
-# 传统入口（兼容）
-bench: up
-	$(MAKE) experiment-hlc
-	$(MAKE) experiment-tablespace
-	$(MAKE) experiment-latency-baseline
-
-bench-delay: up-delay
-	$(MAKE) bench
-
 # ============================================================================
 # 混沌工程
 # ============================================================================
 
-CHAOS_COMPOSE = docker compose -f compose/chaos.yaml
+CHAOS_COMPOSE = docker compose -p yb-compose -f compose/chaos.yaml
 
 chaos-build:
 	$(CHAOS_COMPOSE) build

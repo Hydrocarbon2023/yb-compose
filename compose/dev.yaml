@@ -5,7 +5,7 @@
 #
 # 用法:
 #   docker compose -f compose/dev.yaml run --rm yblab make experiment-all
-#   docker compose -f compose/dev.yaml run --rm yblab make experiment-wan
+#   docker compose -f compose/dev.yaml run --rm yblab make experiment-05
 #   docker compose -f compose/dev.yaml run --rm yblab bash
 
 services:

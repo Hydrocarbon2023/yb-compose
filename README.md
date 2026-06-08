@@ -10,7 +10,7 @@ make chaos-build
 make experiment-all        # 自动依次执行全部实验
 ```
 
-`experiment-all` 自动执行：清理旧环境 → 架构分析 → 基准测试 → 延迟测试 → 故障切换 → WAN 模拟 → 时钟偏移 → 震荡测试。全程约 30-40 分钟。
+`experiment-all` 自动执行 11 个新脚本：架构分析 → 基准延迟 → 延迟基准 → 故障切换 → WAN 模拟 → 非均匀延迟 → 动态分区 → 时钟偏移 → 震荡节点 → TPC-C → 扩展性测试。全程约 45-60 分钟，取决于镜像构建和机器性能。
 
 ## 仓库结构
 
@@ -34,16 +34,17 @@ make experiment-all        # 自动依次执行全部实验
 │   └── chaosctl/chaosctl        # 混沌工程控制器 CLI
 ├── README.md
 ├── scripts/                     # 实验脚本
-│   ├── 01-setup-perf-test.sh    # 创建 perf_test 表并填充
-│   ├── 02-latency-bench.py      # 跨节点延迟基准测试
-│   ├── 02-latency-bench-persist.py  # 延迟基准测试 (持久连接版)
-│   ├── 03-consistency-test.sh   # 一致性级别 + 转账正确性
-│   ├── 04-failover-test.sh      # 故障切换 RTO/RPO
-│   ├── 05-clock-skew-partition.sh   # 时钟偏移 + 分区组合实验
-│   ├── 06-flapping-node-test.sh # 震荡节点测试
-│   ├── 07-chaos-bench.sh        # 动态分区压测脚本
-│   ├── 08-tpcc-benchmark.sh     # TPC-C 基准测试
-│   └── 09-scalability-test.sh   # 扩展性测试
+│   ├── experiment-01-setup-and-architecture.sh
+│   ├── experiment-02-baseline-latency.sh
+│   ├── experiment-03-delay-latency.sh
+│   ├── experiment-04-failover-rto.sh
+│   ├── experiment-05-wan-simulation.sh
+│   ├── experiment-06-asymmetric-delay.sh
+│   ├── experiment-07-dynamic-partition.sh
+│   ├── experiment-08-clock-skew.sh
+│   ├── experiment-09-flapping-node.sh
+│   ├── experiment-10-tpcc-benchmark.sh
+│   └── experiment-11-scalability.sh
 └── sql/
     ├── 01-hlc-clock.sql         # HLC 时钟同步实验
     ├── 02-tablespaces.sql       # Geo-Partitioning 表空间
@@ -56,7 +57,7 @@ make experiment-all        # 自动依次执行全部实验
 |------|------|
 | 容器运行时 | Docker Desktop / Docker Engine |
 | Docker Compose | v2.x+ |
-| 所需镜像 | 自动拉取: yugabytedb/yugabyte, caddy:2-alpine, alpine:latest |
+| 所需镜像 | 自动拉取: yugabytedb/yugabyte, caddy:2-alpine, postgres:16 |
 | 本地构建 | `yb-compose-chaosctl` (make chaos-build) |
 
 ## 在容器内运行实验（可选）
@@ -68,8 +69,8 @@ make experiment-all        # 自动依次执行全部实验
 docker compose -f compose/dev.yaml run --rm yblab make experiment-all
 
 # 运行单项实验
-docker compose -f compose/dev.yaml run --rm yblab make experiment-wan
-docker compose -f compose/dev.yaml run --rm yblab make experiment-failover-docker
+docker compose -f compose/dev.yaml run --rm yblab make experiment-05
+docker compose -f compose/dev.yaml run --rm yblab make experiment-04
 
 # 进入交互式 Shell（调试用）
 docker compose -f compose/dev.yaml run --rm yblab bash
@@ -90,15 +91,13 @@ docker compose -f compose/dev.yaml run --rm yblab bash
 **目的**: 验证 5 节点 RF=3 集群的 HLC 时钟同步、Raft 拓扑和 Geo-Partitioning。
 
 ```bash
-make experiment-hlc          # HLC 时钟同步: 对比各节点 now()
-make experiment-tablespace   # 创建 region1-5 + pref1 表空间
-make experiment-raft         # 查看 yb_servers() 拓扑
+make experiment-01
 ```
 
 **预期输出**:
 - HLC: 同主机各节点 `now()` 完全一致
 - Raft: 5 节点, 3 masters (1 leader + 2 followers) + 2 tservers
-- 表空间: region1, region2, region3, region4, region5, pref1 创建成功
+- 表空间: region1, region2, region3, region4, region5 创建成功
 
 ---
 
@@ -107,20 +106,16 @@ make experiment-raft         # 查看 yb_servers() 拓扑
 **目的**: 测量无延迟环境下 5 个节点的读写延迟基线。
 
 ```bash
-# 启动基准集群
-make up
-
-# 运行基准测试
-make experiment-latency-baseline
+make experiment-02
 ```
 
 **预期输出**:
 ```
-region1 (30ms egress):  READ avg≈49ms  P50≈49ms  P99≈59ms
-region2 (60ms egress):  READ avg≈59ms  P50≈54ms  P99≈85ms
+yb-1 (region1): READ avg≈65-68ms  P99≈82-89ms
+yb-2 (region2): READ avg≈64-67ms  P99≈82-86ms
 ...
 ```
-> 所有节点 ~50ms 延迟主要来自 Docker 网络栈 + psql 连接建立开销。无 tc netem 延迟注入时，节点间延迟差异极小。
+> 基准环境下实测约 64-68ms，主要来自 Docker 网络栈、psql 进程/连接建立和 YSQL 处理开销。无 tc netem 延迟注入时，节点间延迟差异极小。
 
 ---
 
@@ -129,24 +124,22 @@ region2 (60ms egress):  READ avg≈59ms  P50≈54ms  P99≈85ms
 **目的**: 在 30/60/90/120/150ms 延迟梯度下测量读写延迟。
 
 ```bash
-make up-delay               # 启动延迟集群 (自动注入 tc netem)
-make experiment-latency-delay  # 运行延迟基准测试
-make experiment-rtt         # 验证跨节点 RTT
+make experiment-03
 ```
 
 **预期输出**:
 ```
                   读 avg    读 P99    写 avg
-region1 (30ms):   104ms     131ms     103ms
-region2 (60ms):   135ms     202ms     133ms
-region3 (90ms):   167ms     258ms     164ms
-region4 (120ms):  198ms     321ms     194ms
-region5 (150ms):  229ms     354ms     226ms
+region1 (30ms):    97ms     123ms     104ms
+region2 (60ms):   129ms     202ms     135ms
+region3 (90ms):   161ms     240ms     163ms
+region4 (120ms):  198ms     323ms     193ms
+region5 (150ms):  227ms     376ms     226ms
 
 RTT: region1↔region5 = 180ms, region4↔region5 = 270ms
 ```
 
-延迟与 egress 延迟呈线性关系：`latency ≈ 0.83 × egress + 80ms` (R² ≈ 0.997)
+延迟与 egress 延迟呈线性关系：`latency ≈ 0.86 × egress + 70ms` (R² ≈ 0.998)
 
 ---
 
@@ -155,18 +148,14 @@ RTT: region1↔region5 = 180ms, region4↔region5 = 270ms
 **目的**: 对比 docker stop（进程崩溃）和 iptables（网络分区）两种故障场景的恢复时间。
 
 ```bash
-# 实验 4a: docker stop 故障切换
-make experiment-failover-docker
-
-# 实验 4b: iptables 网络分区
-make experiment-failover-iptables
+make experiment-04
 ```
 
 **预期输出**:
 | 场景 | RTO |
 |------|-----|
-| docker stop 主节点 | ~515ms |
-| iptables isolate 主节点 | ~1000-1500ms (含 500ms heartbeat timeout) |
+| docker stop 主节点 | ~560-590ms |
+| iptables isolate 主节点 | net RTO ~560ms，total RTO 受 chaosctl 启动耗时影响 |
 
 两种场景 RPO = 0（Raft 保证已提交日志不丢失）。
 
@@ -177,7 +166,7 @@ make experiment-failover-iptables
 **目的**: 验证 jitter+丢包和带宽限制对延迟分布的影响。
 
 ```bash
-make experiment-wan
+make experiment-05
 ```
 
 **执行内容**:
@@ -208,7 +197,7 @@ region5 (对照):     150ms          230ms     378ms     —
 **目的**: 验证非均匀延迟下 Master leader 和 tablet leader 的分布行为。
 
 ```bash
-make experiment-asymmetric
+make experiment-06
 ```
 
 **执行内容**:
@@ -218,8 +207,8 @@ make experiment-asymmetric
 4. 恢复标准延迟
 
 **预期结果**:
-- Master leader → region1 (10ms, 最低延迟节点) ✅ 自动选择
-- Tablet leader → 不一定是 region1 ❌ 需 Leader Preference 配置
+- Master leader 不会因为当前延迟最低而自动迁移；实测可能停留在 region2 等非最低延迟节点
+- Tablet leader 也不保证自动落在最低延迟节点；需要 Leader Preference 或显式重平衡
 
 ---
 
@@ -228,15 +217,15 @@ make experiment-asymmetric
 **目的**: 在持续写入过程中注入网络分区，观测读写行为。
 
 ```bash
-make experiment-partition-dynamic
+make experiment-07
 ```
 
 **执行内容**: 后台持续写入 + 前端读取 → t=10s 隔离 region2 → t=25s 恢复
 
 **预期输出**:
 ```
-Phase 1 (正常 0-10s): 写入成功, 读 ~5000ms (锁竞争)
-Phase 2 (隔离 10-25s): 写入全部失败, 读 ~80ms (follower, 无锁竞争)
+Phase 1 (正常 0-10s): 读写正常, 读约 200-300ms
+Phase 2 (隔离 10-25s): 大部分请求继续成功, 可能出现短暂失败和秒级长尾
 Phase 3 (恢复 25-30s): 立即恢复
 ```
 
@@ -249,7 +238,7 @@ Phase 3 (恢复 25-30s): 立即恢复
 **先决条件**: 基准集群已启动 (`make up`)
 
 ```bash
-make experiment-clock-skew
+make experiment-08
 ```
 
 **执行内容**:
@@ -275,7 +264,7 @@ make experiment-clock-skew
 **先决条件**: 基准集群已启动 (`make up`)
 
 ```bash
-make experiment-flapping
+make experiment-09
 ```
 
 **执行内容**:
@@ -286,8 +275,40 @@ make experiment-flapping
 | 观察项 | 结果 |
 |--------|------|
 | 隔离窗口写入 | 失败 |
-| P99 延迟 | ~4800-5000ms (锁竞争主导) |
+| 查询延迟 | 震荡期间可能 TIMEOUT 或 P99 明显升高 |
 | 震荡停止后 | 完全恢复，无级联故障 |
+
+---
+
+### 实验 10: TPC-C Benchmark
+
+**目的**: 使用 go-tpc 测量 YugabyteDB 的 TPC-C 吞吐量和事务延迟。
+
+```bash
+make experiment-10
+```
+
+默认参数：10 warehouses、8 threads、5min duration。可覆盖：
+
+```bash
+make experiment-10 TPCC_WAREHOUSES=4 TPCC_THREADS=4 TPCC_DURATION=2m
+```
+
+---
+
+### 实验 11: 扩展性测试
+
+**目的**: 使用 pgbench 对比 1/3/5 节点吞吐量和延迟。
+
+```bash
+make experiment-11
+```
+
+默认参数：scale=1、16 clients、60s。可通过环境变量缩短调试：
+
+```bash
+PG_DURATION=15 NODE_COUNTS="1 3" bash scripts/experiment-11-scalability.sh
+```
 
 ---
 
@@ -295,17 +316,19 @@ make experiment-flapping
 
 | 实验 | 命令 | 所需环境 | 耗时 |
 |------|------|---------|------|
-| 1. 架构分析 | `make experiment-phase1` | 基准集群 | 1min |
-| 2. 基准延迟 | `make experiment-phase2` | 基准集群 | 2min |
-| 3. 延迟基准 | `make experiment-phase3` | 延迟集群 | 5min |
-| 4. 故障切换 | `make experiment-failover-*` | 延迟集群 | 2min |
-| 5. WAN 模拟 | `make experiment-wan` | 延迟集群 | 5min |
-| 6. Asymmetric | `make experiment-asymmetric` | 延迟集群 | 2min |
-| 7. 动态分区 | `make experiment-partition-dynamic` | 延迟集群 | 1min |
-| 8. 时钟偏移 | `make experiment-clock-skew` | 基准集群 | 1min |
-| 9. 震荡节点 | `make experiment-flapping` | 基准集群 | 3min |
+| 1. 架构分析 | `make experiment-01` | 基准集群 | 1min |
+| 2. 基准延迟 | `make experiment-02` | 基准集群 | 2min |
+| 3. 延迟基准 | `make experiment-03` | 延迟集群 | 5min |
+| 4. 故障切换 | `make experiment-04` | 延迟集群 | 2min |
+| 5. WAN 模拟 | `make experiment-05` | 延迟集群 | 5min |
+| 6. Asymmetric | `make experiment-06` | 延迟集群 | 2min |
+| 7. 动态分区 | `make experiment-07` | 延迟集群 | 1min |
+| 8. 时钟偏移 | `make experiment-08` | 基准集群 | 1min |
+| 9. 震荡节点 | `make experiment-09` | 基准集群 | 3min |
+| 10. TPC-C | `make experiment-10` | 基准集群 + go-tpc | 5-10min |
+| 11. 扩展性 | `make experiment-11` | 基准集群 + pgbench | 3-5min |
 
-**一键全跑**: `make experiment-all`（约 30-40min）
+**一键全跑**: `make experiment-all`（约 45-60min）
 
 ## Makefile 命令参考
 
@@ -362,8 +385,8 @@ cap_add:
 
 | 环境 | 配置 | 节点延迟 | 读 avg | 读 P50 | 写 avg |
 |------|------|---------|--------|--------|--------|
-| 基准 | NET_DELAY_MS=1 | ~0ms | 49ms | 49ms | 49ms |
-| 延迟 | NET_DELAY_MS=30 | 30-150ms | 104-229ms | 110-229ms | 103-226ms |
+| 基准 | NET_DELAY_MS=1 | ~0ms | 64-68ms | 66-72ms | 64-68ms |
+| 延迟 | NET_DELAY_MS=30 | 30-150ms | 97-227ms | 101-224ms | 104-226ms |
 
 ## 分布式数据库设计要点
 
